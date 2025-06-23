@@ -8,3 +8,6 @@ primaryColor = "#1f77b4"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f0f2f6"
 textColor = "#262730"
+
+# Data backup: 2025-06-23T22:08:44.702540
+# backup_data = "eyJuYW1lIjp7IjAiOiJDbGllbnRlIFRlc3RlIFBlcnNpc3RcdTAwZWFuY2lhIiwiMSI6IkNsaWVudGUgVGVzdGUgTXVsdGktVXNlciJ9LCJzaWdudXBfZGF0ZSI6eyIwIjoiMjAyNC0wMS0xNSIsIjEiOiIyMDI0LTAyLTIwIn0sInBsYW5fdmFsdWUiOnsiMCI6MjUwMC4wLCIxIjoxODAwLjB9LCJzdGF0dXMiOnsiMCI6IkF0aXZvIiwiMSI6IkF0aXZvIn0sImNhbmNlbF9kYXRlIjp7IjAiOm51bGwsIjEiOm51bGx9fQ=="

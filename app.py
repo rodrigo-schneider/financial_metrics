@@ -7,6 +7,7 @@ from datetime import datetime, date
 import os
 import calendar
 import shutil
+from persistent_storage import PersistentStorageManager
 
 # Configuração da página
 st.set_page_config(
@@ -25,6 +26,7 @@ class DataManager:
             "customers_recovery_backup.csv", 
             "customers_master_backup.csv"
         ]
+        self.persistent_storage = PersistentStorageManager()
         self._ensure_permanent_storage()
         self._ensure_file_exists()
     
@@ -88,31 +90,42 @@ class DataManager:
             customers_df.to_csv(self.customers_file, index=False)
     
     def load_customers(self):
-        """Carrega dados de clientes com tratamento robusto de erros"""
+        """Carrega dados de clientes com sistema de persistência externa"""
         try:
-            if not os.path.exists(self.customers_file):
-                self._ensure_file_exists()
+            # Primeira tentativa: carregar do sistema de persistência externa
+            df = self.persistent_storage.load_data()
             
-            df = pd.read_csv(self.customers_file)
+            if df is not None and not df.empty:
+                # Dados encontrados no sistema externo
+                # Sincronizar com arquivo local
+                df.to_csv(self.customers_file, index=False)
+                return self._process_loaded_data(df)
             
-            if df.empty:
-                return pd.DataFrame(columns=['name', 'signup_date', 'plan_value', 'status', 'cancel_date'])
+            # Segunda tentativa: arquivo local
+            if os.path.exists(self.customers_file):
+                df = pd.read_csv(self.customers_file)
+                if not df.empty:
+                    # Salvar no sistema externo para próximas sessões
+                    self.persistent_storage.save_data(df)
+                    return self._process_loaded_data(df)
             
-            # Manter datas como string para evitar conversão dupla
-            # As datas serão convertidas apenas quando necessário para cálculos
-            
-            # Garantir tipos corretos
-            try:
-                df['plan_value'] = pd.to_numeric(df['plan_value'], errors='coerce')
-                df['plan_value'] = df['plan_value'].fillna(0)
-            except:
-                df['plan_value'] = 0
-            
-            return df
+            # Terceira tentativa: criar arquivo vazio
+            self._ensure_file_exists()
+            return pd.DataFrame(columns=['name', 'signup_date', 'plan_value', 'status', 'cancel_date'])
             
         except Exception as e:
-            # Em caso de erro, retornar DataFrame vazio
+            print(f"Erro no carregamento: {e}")
             return pd.DataFrame(columns=['name', 'signup_date', 'plan_value', 'status', 'cancel_date'])
+    
+    def _process_loaded_data(self, df):
+        """Processa dados carregados garantindo tipos corretos"""
+        try:
+            df['plan_value'] = pd.to_numeric(df['plan_value'], errors='coerce')
+            df['plan_value'] = df['plan_value'].fillna(0)
+        except:
+            df['plan_value'] = 0
+        
+        return df
     
     def add_customer(self, name, signup_date, plan_value, status, cancel_date=None):
         """Adiciona cliente com validações e salvamento ultra-robusto"""
@@ -149,6 +162,9 @@ class DataManager:
             
             # Criar backups permanentes ANTES de salvar
             self._create_permanent_backups(df)
+            
+            # Salvar no sistema de persistência externa
+            external_save_success = self.persistent_storage.save_data(df)
             
             # Criar múltiplos backups temporários também
             backup_file = f"{self.customers_file}.backup"
@@ -1016,15 +1032,25 @@ elif page == "Inserir Dados":
         else:
             backup_status.append(f"⚠️ {backup_file}: Não encontrado")
     
+    # Verificar status do sistema de persistência externa
+    storage_status = data_manager.persistent_storage.get_storage_status()
+    external_storage_info = []
+    for status in storage_status:
+        if status['available']:
+            external_storage_info.append(f"✅ {status['method']}: {status['records']} registros {'(PERMANENTE)' if status['permanent'] else '(temporário)'}")
+        else:
+            external_storage_info.append(f"⚠️ {status['method']}: não disponível")
+    
     # Verificar integridade dos dados atuais
     current_customers = data_manager.load_customers()
     total_records = len(current_customers)
     
     st.markdown(f"""
     <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
-        <h5 style="margin-top: 0; color: #155724;">Sistema de Persistência Permanente Ativo</h5>
-        <p style="margin-bottom: 5px; color: #155724;">📊 <strong>{total_records} clientes</strong> protegidos em múltiplos backups</p>
-        <p style="margin-bottom: 0; color: #155724; font-size: 12px;">{' | '.join(backup_status)}</p>
+        <h5 style="margin-top: 0; color: #155724;">Sistema de Persistência Multi-Camada Ativo</h5>
+        <p style="margin-bottom: 5px; color: #155724;">📊 <strong>{total_records} clientes</strong> protegidos permanentemente</p>
+        <p style="margin-bottom: 5px; color: #155724; font-size: 12px;"><strong>Backups Locais:</strong> {' | '.join(backup_status[:2])}</p>
+        <p style="margin-bottom: 0; color: #155724; font-size: 12px;"><strong>Armazenamento Externo:</strong> {' | '.join(external_storage_info)}</p>
     </div>
     """, unsafe_allow_html=True)
     

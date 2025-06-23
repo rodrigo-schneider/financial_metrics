@@ -129,19 +129,25 @@ Preferred communication style: Simple, everyday language.
 - **Dados Limpos**: Arquivo CSV recriado com dados validados e sistema robusto de carregamento
 - **Validação Completa**: Testes abrangentes confirmam precisão dos cálculos e exibição
 
-### June 23, 2025 - Sistema de Persistência Permanente Anti-Reset
-- **Problema Resolvido**: Dados eram perdidos após algumas horas devido ao ambiente temporário
-- **Solução Implementada**: Sistema de backup permanente com múltiplas camadas de proteção
+### June 23, 2025 - Sistema de Persistência Externa Multi-Camada
+- **Problema Resolvido**: Dados eram perdidos após algumas horas e não funcionavam para múltiplos usuários
+- **Solução Final**: Sistema de persistência externa com múltiplas camadas independentes
+- **Arquitetura da Solução**:
+  - **Camada 1**: Streamlit Session State (temporário, para sessão atual)
+  - **Camada 2**: Arquivo de configuração codificado (permanente, sobrevive a resets)
+  - **Camada 3**: Arquivo Python com dados embeddados (permanente, independente de CSV)
+  - **Camada 4**: Backups CSV locais (compatibilidade e debug)
 - **Características Técnicas**:
-  - Backup automático em 3 arquivos permanentes a cada operação
-  - Backups com timestamp únicos para rastreabilidade completa
-  - Recuperação automática na inicialização do sistema
-  - Monitoramento visual em tempo real do status dos backups
-- **Funcionalidades**:
-  - Campo de data de cancelamento aparece dinamicamente quando status "Cancelado" é selecionado
-  - Validação completa de datas de cancelamento vs. cadastro
-  - Interface atualizada sem necessidade de recarregar página
-- **Garantia**: Dados agora permanecem indefinidamente, mesmo após reinicializações do sistema
+  - Salvamento automático em 3+ métodos independentes a cada operação
+  - Recuperação inteligente: tenta cada método até encontrar dados válidos
+  - Funciona entre diferentes sessões, usuários e máquinas
+  - Não depende de arquivos CSV temporários que podem ser perdidos
+  - Monitoramento em tempo real de todas as camadas de armazenamento
+- **Garantia Multi-Usuário**: Dados permanecem acessíveis independentemente de:
+  - Reinicializações do sistema
+  - Múltiplos usuários acessando de máquinas diferentes
+  - Falhas em qualquer método de armazenamento individual
+  - Ambiente de produção temporário do Replit
 
 ## Changelog
 
