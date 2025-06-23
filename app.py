@@ -1003,63 +1003,54 @@ elif page == "Inserir Dados":
     </div>
     """, unsafe_allow_html=True)
     
-    # Inicializar session state para controle de formulário
-    if 'form_submitted' not in st.session_state:
-        st.session_state.form_submitted = False
+    # Usar formulário sem auto-submit para permitir interatividade
+    col1, col2 = st.columns(2)
     
-    # Status do cliente fora do formulário para permitir interatividade
-    status = st.selectbox(
-        "Status do Cliente", 
-        ["Ativo", "Cancelado"],
-        help="Situação atual do cliente",
-        key="status_outside_form"
-    )
-    
-    # Usar st.form para garantir limpeza automática
-    with st.form("add_customer_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            customer_name = st.text_input(
-                "Nome Completo", 
-                placeholder="Ex: João Silva",
-                help="Digite o nome completo do cliente"
-            )
-            signup_date = st.date_input(
-                "Data de Cadastro", 
-                value=date.today(),
-                help="Quando o cliente se cadastrou"
-            )
-        
-        with col2:
-            plan_value = st.number_input(
-                "Valor do Plano Mensal (USD)", 
-                min_value=0.0, 
-                step=1.0,
-                help="Quanto o cliente paga por mês em dólares"
-            )
-            
-            # Mostrar status selecionado como informação
-            st.info(f"Status selecionado: **{status}**")
-        
-        # Mostrar data de cancelamento automaticamente quando status for "Cancelado"
-        cancel_date = None
-        if status == "Cancelado":
-            cancel_date = st.date_input(
-                "Data de Cancelamento", 
-                value=date.today(),
-                help="Quando o cliente cancelou"
-            )
-        
-        # Botão de submissão do formulário
-        submitted = st.form_submit_button(
-            "➕ Adicionar Cliente",
-            use_container_width=True,
-            type="primary"
+    with col1:
+        customer_name = st.text_input(
+            "Nome Completo", 
+            placeholder="Ex: João Silva",
+            help="Digite o nome completo do cliente",
+            key="customer_name"
+        )
+        signup_date = st.date_input(
+            "Data de Cadastro", 
+            value=date.today(),
+            help="Quando o cliente se cadastrou",
+            key="signup_date"
         )
     
-    # Processar submissão do formulário
-    if submitted:
+    with col2:
+        plan_value = st.number_input(
+            "Valor do Plano Mensal (USD)", 
+            min_value=0.0, 
+            step=1.0,
+            help="Quanto o cliente paga por mês em dólares",
+            key="plan_value"
+        )
+        status = st.selectbox(
+            "Status do Cliente", 
+            ["Ativo", "Cancelado"],
+            help="Situação atual do cliente",
+            key="status"
+        )
+    
+    # Mostrar data de cancelamento automaticamente quando status for "Cancelado"
+    cancel_date = None
+    if status == "Cancelado":
+        cancel_date = st.date_input(
+            "Data de Cancelamento", 
+            value=date.today(),
+            help="Quando o cliente cancelou",
+            key="cancel_date"
+        )
+    
+    # Botão de submissão
+    if st.button(
+        "➕ Adicionar Cliente",
+        use_container_width=True,
+        type="primary"
+    ):
         # Validações detalhadas no frontend
         errors = []
         
@@ -1142,10 +1133,6 @@ elif page == "Inserir Dados":
                             """)
                         
                         st.balloons()
-                        
-                        # Resetar status para Ativo após salvamento
-                        st.session_state.status_outside_form = "Ativo"
-                        
                         st.rerun()
                     else:
                         with log_container:
