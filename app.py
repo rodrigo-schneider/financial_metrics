@@ -561,15 +561,120 @@ if page == "Dashboard":
             
             visualizations = create_visualizations(monthly_metrics)
             
-            col1, col2 = st.columns(2)
+            # Filtrar apenas dados com valores > 0 para mostrar na visualização
+            data_with_values = monthly_metrics[
+                (monthly_metrics['novos_clientes'] > 0) | 
+                (monthly_metrics['mrr'] > 0) | 
+                (monthly_metrics['ticket_medio'] > 0) |
+                (monthly_metrics['churn_clientes'] > 0)
+            ].copy()
             
-            with col1:
-                st.plotly_chart(visualizations['novos_clientes'], use_container_width=True)
-                st.plotly_chart(visualizations['ticket_medio'], use_container_width=True)
-            
-            with col2:
-                st.plotly_chart(visualizations['mrr'], use_container_width=True)
-                st.plotly_chart(visualizations['churn'], use_container_width=True)
+            if len(data_with_values) > 0:
+                # Criar visualização em cards grandes por mês
+                for _, row in data_with_values.iterrows():
+                    with st.container():
+                        st.markdown(f"### 📅 {row['mes_ano']}")
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); 
+                                       padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px;">
+                                <h2 style="margin: 0; font-size: 3em; font-weight: bold;">{int(row['novos_clientes'])}</h2>
+                                <p style="margin: 5px 0 0 0; font-size: 1.1em; font-weight: bold;">NOVOS CLIENTES</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        with col2:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #10b981 0%, #047857 100%); 
+                                       padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px;">
+                                <h2 style="margin: 0; font-size: 3em; font-weight: bold;">${int(row['mrr']):,}</h2>
+                                <p style="margin: 5px 0 0 0; font-size: 1.1em; font-weight: bold;">MRR (USD)</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        with col3:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                                       padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px;">
+                                <h2 style="margin: 0; font-size: 3em; font-weight: bold;">${int(row['ticket_medio']):,}</h2>
+                                <p style="margin: 5px 0 0 0; font-size: 1.1em; font-weight: bold;">TICKET MÉDIO</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        with col4:
+                            churn_rate = (row['churn_clientes'] / monthly_metrics['novos_clientes'].cumsum().max() * 100) if monthly_metrics['novos_clientes'].cumsum().max() > 0 else 0
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); 
+                                       padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px;">
+                                <h2 style="margin: 0; font-size: 2.2em; font-weight: bold;">{int(row['churn_clientes'])}</h2>
+                                <p style="margin: 2px 0 0 0; font-size: 1.4em; font-weight: bold;">({churn_rate:.1f}%)</p>
+                                <p style="margin: 2px 0 0 0; font-size: 1.1em; font-weight: bold;">CHURN</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        st.markdown("---")
+                
+                # Gráfico resumido simples
+                st.subheader("📊 Gráfico Resumo")
+                
+                fig_summary = go.Figure()
+                
+                # MRR como linha principal
+                fig_summary.add_trace(go.Scatter(
+                    x=data_with_values['mes_ano'],
+                    y=data_with_values['mrr'],
+                    mode='lines+markers',
+                    name='MRR (USD)',
+                    line=dict(color='#10b981', width=5),
+                    marker=dict(size=12, color='#10b981'),
+                    yaxis='y1'
+                ))
+                
+                # Novos clientes como barras
+                fig_summary.add_trace(go.Bar(
+                    x=data_with_values['mes_ano'],
+                    y=data_with_values['novos_clientes'],
+                    name='Novos Clientes',
+                    marker_color='#3b82f6',
+                    opacity=0.8,
+                    yaxis='y2'
+                ))
+                
+                fig_summary.update_layout(
+                    title=dict(
+                        text='💰 MRR e 👥 Novos Clientes por Mês',
+                        font=dict(size=22, family='Arial Black'),
+                        x=0.5
+                    ),
+                    xaxis=dict(
+                        title='Mês',
+                        tickfont=dict(size=12)
+                    ),
+                    yaxis=dict(
+                        title='MRR (USD)', 
+                        side='left',
+                        tickformat='$,.0f',
+                        titlefont=dict(color='#10b981')
+                    ),
+                    yaxis2=dict(
+                        title='Novos Clientes', 
+                        side='right',
+                        overlaying='y',
+                        titlefont=dict(color='#3b82f6')
+                    ),
+                    height=450,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    legend=dict(x=0.02, y=0.98),
+                    margin=dict(t=80, b=60, l=80, r=80)
+                )
+                
+                st.plotly_chart(fig_summary, use_container_width=True)
+            else:
+                st.info("📊 Adicione dados de clientes para visualizar a evolução mensal")
             
             # Tabela detalhada com todos os dados solicitados em USD
             st.subheader("📋 Dados Mensais Detalhados")
