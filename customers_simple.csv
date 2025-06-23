@@ -1,0 +1,11 @@
+name,signup_date,plan_value,status,cancel_date
+João Silva,2024-01-15,299.9,Ativo,
+Maria Santos,2024-02-03,199.9,Ativo,
+Pedro Costa,2024-02-20,399.9,Ativo,
+Ana Oliveira,2024-03-05,299.9,Cancelado,2024-05-15
+Carlos Lima,2024-03-12,499.9,Ativo,
+Julia Ferreira,2024-04-08,199.9,Ativo,
+Roberto Alves,2024-04-25,299.9,Ativo,
+Fernanda Rocha,2024-05-10,399.9,Cancelado,2024-06-20
+Lucas Mendes,2024-05-22,299.9,Ativo,
+Patricia Sousa,2024-06-05,199.9,Ativo,

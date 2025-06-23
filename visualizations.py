@@ -82,7 +82,7 @@ def create_mrr_chart(df, colors):
     )
     
     # Formatar valores do eixo Y
-    fig.update_yaxis(tickformat=',.0f', tickprefix='R$ ')
+    fig.update_layout(yaxis=dict(tickformat=',.0f', tickprefix='R$ '))
     
     # Adicionar valores nos pontos
     fig.update_traces(
@@ -112,7 +112,7 @@ def create_avg_ticket_chart(df, colors):
     )
     
     # Formatar valores do eixo Y
-    fig.update_yaxis(tickformat=',.2f', tickprefix='R$ ')
+    fig.update_layout(yaxis=dict(tickformat=',.2f', tickprefix='R$ '))
     
     return fig
 
@@ -153,10 +153,9 @@ def create_churn_chart(df, colors):
     fig.update_yaxes(title_text="Churn Clientes", secondary_y=False)
     fig.update_yaxes(
         title_text="Churn MRR (R$)",
-        secondary_y=True,
-        tickformat=',.0f',
-        tickprefix='R$ '
+        secondary_y=True
     )
+    fig.update_layout(yaxis2=dict(tickformat=',.0f', tickprefix='R$ '))
     
     fig.update_layout(
         height=400,
