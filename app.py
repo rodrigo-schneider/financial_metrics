@@ -1003,21 +1003,30 @@ elif page == "Inserir Dados":
     </div>
     """, unsafe_allow_html=True)
     
-    # Usar formulário sem auto-submit para permitir interatividade
+    # Usar session state para controlar limpeza dos campos
+    if 'clear_form' not in st.session_state:
+        st.session_state.clear_form = False
+    
+    # Valores padrão que são resetados após salvamento bem-sucedido
+    default_name = "" if st.session_state.clear_form else st.session_state.get("customer_name", "")
+    default_value = 0.0 if st.session_state.clear_form else st.session_state.get("plan_value", 0.0)
+    default_status_index = 0 if st.session_state.clear_form else (1 if st.session_state.get("status", "Ativo") == "Cancelado" else 0)
+    
     col1, col2 = st.columns(2)
     
     with col1:
         customer_name = st.text_input(
             "Nome Completo", 
+            value=default_name,
             placeholder="Ex: João Silva",
             help="Digite o nome completo do cliente",
-            key="customer_name"
+            key="customer_name_input"
         )
         signup_date = st.date_input(
             "Data de Cadastro", 
             value=date.today(),
             help="Quando o cliente se cadastrou",
-            key="signup_date"
+            key="signup_date_input"
         )
     
     with col2:
@@ -1025,14 +1034,16 @@ elif page == "Inserir Dados":
             "Valor do Plano Mensal (USD)", 
             min_value=0.0, 
             step=1.0,
+            value=default_value,
             help="Quanto o cliente paga por mês em dólares",
-            key="plan_value"
+            key="plan_value_input"
         )
         status = st.selectbox(
             "Status do Cliente", 
             ["Ativo", "Cancelado"],
+            index=default_status_index,
             help="Situação atual do cliente",
-            key="status"
+            key="status_input"
         )
     
     # Mostrar data de cancelamento automaticamente quando status for "Cancelado"
@@ -1042,8 +1053,12 @@ elif page == "Inserir Dados":
             "Data de Cancelamento", 
             value=date.today(),
             help="Quando o cliente cancelou",
-            key="cancel_date"
+            key="cancel_date_input"
         )
+    
+    # Reset flag após renderizar
+    if st.session_state.clear_form:
+        st.session_state.clear_form = False
     
     # Botão de submissão
     if st.button(
@@ -1133,6 +1148,15 @@ elif page == "Inserir Dados":
                             """)
                         
                         st.balloons()
+                        
+                        # Limpar formulário após sucesso
+                        st.session_state.clear_form = True
+                        
+                        # Limpar valores específicos do session state
+                        for key in ['customer_name_input', 'plan_value_input', 'status_input', 'cancel_date_input']:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        
                         st.rerun()
                     else:
                         with log_container:
