@@ -191,15 +191,13 @@ def create_visualizations(monthly_metrics):
             x=0.5
         ),
         xaxis=dict(
-            title='MÊS',
-            titlefont=dict(size=14, family='Arial Black'),
+            title=dict(text='MÊS', font=dict(size=14, family='Arial Black')),
             tickfont=dict(size=12, family='Arial'),
             gridcolor='rgba(0,0,0,0.1)',
             showgrid=True
         ),
         yaxis=dict(
-            title='QUANTIDADE',
-            titlefont=dict(size=14, family='Arial Black'),
+            title=dict(text='QUANTIDADE', font=dict(size=14, family='Arial Black')),
             tickfont=dict(size=12, family='Arial'),
             gridcolor='rgba(0,0,0,0.1)',
             showgrid=True
@@ -239,15 +237,13 @@ def create_visualizations(monthly_metrics):
             x=0.5
         ),
         xaxis=dict(
-            title='MÊS',
-            titlefont=dict(size=14, family='Arial Black'),
+            title=dict(text='MÊS', font=dict(size=14, family='Arial Black')),
             tickfont=dict(size=12, family='Arial'),
             gridcolor='rgba(0,0,0,0.1)',
             showgrid=True
         ),
         yaxis=dict(
-            title='RECEITA (USD)',
-            titlefont=dict(size=14, family='Arial Black'),
+            title=dict(text='RECEITA (USD)', font=dict(size=14, family='Arial Black')),
             tickfont=dict(size=12, family='Arial'),
             gridcolor='rgba(0,0,0,0.1)',
             showgrid=True,
@@ -285,15 +281,13 @@ def create_visualizations(monthly_metrics):
             x=0.5
         ),
         xaxis=dict(
-            title='MÊS',
-            titlefont=dict(size=14, family='Arial Black'),
+            title=dict(text='MÊS', font=dict(size=14, family='Arial Black')),
             tickfont=dict(size=12, family='Arial'),
             gridcolor='rgba(0,0,0,0.1)',
             showgrid=True
         ),
         yaxis=dict(
-            title='VALOR (USD)',
-            titlefont=dict(size=14, family='Arial Black'),
+            title=dict(text='VALOR (USD)', font=dict(size=14, family='Arial Black')),
             tickfont=dict(size=12, family='Arial'),
             gridcolor='rgba(0,0,0,0.1)',
             showgrid=True,
@@ -360,14 +354,14 @@ def create_visualizations(monthly_metrics):
     
     fig_churn.update_xaxes(
         title_text="MÊS",
-        titlefont=dict(size=14, family='Arial Black'),
+        title_font=dict(size=14, family='Arial Black'),
         tickfont=dict(size=12, family='Arial'),
         gridcolor='rgba(0,0,0,0.1)',
         showgrid=True
     )
     fig_churn.update_yaxes(
         title_text="CLIENTES CANCELADOS",
-        titlefont=dict(size=14, family='Arial Black', color=colors['danger']),
+        title_font=dict(size=14, family='Arial Black', color=colors['danger']),
         tickfont=dict(size=12, family='Arial'),
         gridcolor='rgba(0,0,0,0.1)',
         showgrid=True,
@@ -375,9 +369,8 @@ def create_visualizations(monthly_metrics):
     )
     fig_churn.update_yaxes(
         title_text="TAXA DE CHURN (%)",
-        titlefont=dict(size=14, family='Arial Black', color='#ff6b6b'),
+        title_font=dict(size=14, family='Arial Black', color='#ff6b6b'),
         tickfont=dict(size=12, family='Arial'),
-        ticksuffix='%',
         secondary_y=True
     )
     
