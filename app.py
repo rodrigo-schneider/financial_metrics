@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime, date
 import os
 import calendar
@@ -165,93 +166,158 @@ def create_visualizations(monthly_metrics):
     
     colors = {'primary': '#3b82f6', 'success': '#10b981', 'warning': '#f59e0b', 'danger': '#ef4444'}
     
-    # 1. Gráfico de novos clientes por mês
-    fig_customers = px.bar(
-        monthly_metrics, x='mes_ano', y='novos_clientes',
-        title='👥 NOVOS CLIENTES POR MÊS',
-        color_discrete_sequence=[colors['primary']],
-        text='novos_clientes'
-    )
-    fig_customers.update_traces(
+    # 1. Gráfico de novos clientes por mês - otimizado
+    fig_customers = go.Figure()
+    
+    fig_customers.add_trace(go.Bar(
+        x=monthly_metrics['mes_ano'],
+        y=monthly_metrics['novos_clientes'],
+        name='Novos Clientes',
+        marker_color=colors['primary'],
+        text=monthly_metrics['novos_clientes'],
         texttemplate='<b>%{text}</b>',
         textposition='outside',
-        textfont_size=14
-    )
+        textfont=dict(size=16, color='black', family='Arial Black'),
+        marker=dict(
+            line=dict(color='rgba(0,0,0,0.3)', width=2),
+            opacity=0.9
+        )
+    ))
+    
     fig_customers.update_layout(
-        showlegend=False, 
-        height=400,
-        xaxis_title="MÊS",
-        yaxis_title="NOVOS CLIENTES",
-        title_font_size=20,
-        title_x=0.5,
+        title=dict(
+            text='👥 NOVOS CLIENTES POR MÊS',
+            font=dict(size=22, family='Arial Black', color='#2c3e50'),
+            x=0.5
+        ),
+        xaxis=dict(
+            title='MÊS',
+            titlefont=dict(size=14, family='Arial Black'),
+            tickfont=dict(size=12, family='Arial'),
+            gridcolor='rgba(0,0,0,0.1)',
+            showgrid=True
+        ),
+        yaxis=dict(
+            title='QUANTIDADE',
+            titlefont=dict(size=14, family='Arial Black'),
+            tickfont=dict(size=12, family='Arial'),
+            gridcolor='rgba(0,0,0,0.1)',
+            showgrid=True
+        ),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(size=12, family="Arial Black")
+        showlegend=False,
+        height=420,
+        margin=dict(t=60, b=50, l=60, r=50)
     )
     
-    # 2. Gráfico de MRR em USD (sem conversão)
-    fig_mrr = px.line(
-        monthly_metrics, x='mes_ano', y='mrr',
-        title='💰 FATURAMENTO MENSAL (MRR)',
-        markers=True, 
-        color_discrete_sequence=[colors['success']],
-        text='mrr'
-    )
-    fig_mrr.update_traces(
-        line=dict(width=6),
-        marker=dict(size=12),
+    # 2. Gráfico de MRR - linha otimizada
+    fig_mrr = go.Figure()
+    
+    fig_mrr.add_trace(go.Scatter(
+        x=monthly_metrics['mes_ano'],
+        y=monthly_metrics['mrr'],
+        mode='lines+markers+text',
+        name='MRR',
+        line=dict(color=colors['success'], width=5, shape='spline'),
+        marker=dict(
+            size=14,
+            color=colors['success'],
+            line=dict(color='white', width=3),
+            symbol='circle'
+        ),
+        text=monthly_metrics['mrr'],
         texttemplate='<b>$%{text:,.0f}</b>',
         textposition='top center',
-        textfont_size=14
-    )
+        textfont=dict(size=16, color='black', family='Arial Black')
+    ))
+    
     fig_mrr.update_layout(
-        showlegend=False, 
-        height=400,
-        xaxis_title="MÊS",
-        yaxis_title="RECEITA (USD)",
-        title_font_size=20,
-        title_x=0.5,
+        title=dict(
+            text='💰 FATURAMENTO MENSAL (MRR)',
+            font=dict(size=22, family='Arial Black', color='#2c3e50'),
+            x=0.5
+        ),
+        xaxis=dict(
+            title='MÊS',
+            titlefont=dict(size=14, family='Arial Black'),
+            tickfont=dict(size=12, family='Arial'),
+            gridcolor='rgba(0,0,0,0.1)',
+            showgrid=True
+        ),
+        yaxis=dict(
+            title='RECEITA (USD)',
+            titlefont=dict(size=14, family='Arial Black'),
+            tickfont=dict(size=12, family='Arial'),
+            gridcolor='rgba(0,0,0,0.1)',
+            showgrid=True,
+            tickformat='$,.0f'
+        ),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(size=12, family="Arial Black")
+        showlegend=False,
+        height=420,
+        margin=dict(t=60, b=50, l=80, r=50)
     )
     
-    # 3. Gráfico de ticket médio em USD (sem conversão)
-    fig_ticket = px.bar(
-        monthly_metrics, x='mes_ano', y='ticket_medio',
-        title='🎯 TICKET MÉDIO POR MÊS',
-        color_discrete_sequence=[colors['warning']],
-        text='ticket_medio'
-    )
-    fig_ticket.update_traces(
+    # 3. Gráfico de ticket médio - barras otimizadas
+    fig_ticket = go.Figure()
+    
+    fig_ticket.add_trace(go.Bar(
+        x=monthly_metrics['mes_ano'],
+        y=monthly_metrics['ticket_medio'],
+        name='Ticket Médio',
+        marker_color=colors['warning'],
+        text=monthly_metrics['ticket_medio'],
         texttemplate='<b>$%{text:,.0f}</b>',
         textposition='outside',
-        textfont_size=14
-    )
+        textfont=dict(size=16, color='black', family='Arial Black'),
+        marker=dict(
+            line=dict(color='rgba(0,0,0,0.3)', width=2),
+            opacity=0.9
+        )
+    ))
+    
     fig_ticket.update_layout(
-        showlegend=False, 
-        height=400,
-        xaxis_title="MÊS",
-        yaxis_title="TICKET MÉDIO (USD)",
-        title_font_size=20,
-        title_x=0.5,
+        title=dict(
+            text='🎯 TICKET MÉDIO POR MÊS',
+            font=dict(size=22, family='Arial Black', color='#2c3e50'),
+            x=0.5
+        ),
+        xaxis=dict(
+            title='MÊS',
+            titlefont=dict(size=14, family='Arial Black'),
+            tickfont=dict(size=12, family='Arial'),
+            gridcolor='rgba(0,0,0,0.1)',
+            showgrid=True
+        ),
+        yaxis=dict(
+            title='VALOR (USD)',
+            titlefont=dict(size=14, family='Arial Black'),
+            tickfont=dict(size=12, family='Arial'),
+            gridcolor='rgba(0,0,0,0.1)',
+            showgrid=True,
+            tickformat='$,.0f'
+        ),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(size=12, family="Arial Black")
+        showlegend=False,
+        height=420,
+        margin=dict(t=60, b=50, l=80, r=50)
     )
     
-    # 4. Gráfico de churn - quantidade e percentual
+    # 4. Gráfico de churn - quantidade e percentual otimizado
     # Calcular taxa de churn percentual
     monthly_metrics['churn_rate'] = (monthly_metrics['churn_clientes'] / monthly_metrics['novos_clientes'].cumsum()) * 100
     monthly_metrics['churn_rate'] = monthly_metrics['churn_rate'].fillna(0)
     
-    from plotly.subplots import make_subplots
+
     fig_churn = make_subplots(
         specs=[[{"secondary_y": True}]],
         subplot_titles=['📉 CHURN MENSAL (QUANTIDADE + PERCENTUAL)']
     )
     
-    # Churn de clientes (quantidade)
+    # Churn de clientes (quantidade) - barras otimizadas
     fig_churn.add_trace(
         go.Bar(
             x=monthly_metrics['mes_ano'],
@@ -261,46 +327,81 @@ def create_visualizations(monthly_metrics):
             text=monthly_metrics['churn_clientes'],
             texttemplate='<b>%{text}</b>',
             textposition='outside',
-            textfont_size=14
+            textfont=dict(size=16, color='black', family='Arial Black'),
+            marker=dict(
+                line=dict(color='rgba(0,0,0,0.3)', width=2),
+                opacity=0.9
+            )
         ),
         secondary_y=False
     )
     
-    # Churn percentual
+    # Churn percentual - linha otimizada
     fig_churn.add_trace(
         go.Scatter(
             x=monthly_metrics['mes_ano'],
             y=monthly_metrics['churn_rate'],
             mode='lines+markers+text',
             name='Churn %',
-            line=dict(color='#ff6b6b', width=4),
-            marker=dict(size=10),
+            line=dict(color='#ff6b6b', width=5, shape='spline'),
+            marker=dict(
+                size=14,
+                color='#ff6b6b',
+                line=dict(color='white', width=3),
+                symbol='diamond'
+            ),
             text=monthly_metrics['churn_rate'],
             texttemplate='<b>%{text:.1f}%</b>',
             textposition='top center',
-            textfont_size=14
+            textfont=dict(size=16, color='black', family='Arial Black')
         ),
         secondary_y=True
     )
     
-    fig_churn.update_xaxes(title_text="MÊS")
-    fig_churn.update_yaxes(title_text="CLIENTES CANCELADOS", secondary_y=False)
-    fig_churn.update_yaxes(title_text="TAXA DE CHURN (%)", secondary_y=True)
+    fig_churn.update_xaxes(
+        title_text="MÊS",
+        titlefont=dict(size=14, family='Arial Black'),
+        tickfont=dict(size=12, family='Arial'),
+        gridcolor='rgba(0,0,0,0.1)',
+        showgrid=True
+    )
+    fig_churn.update_yaxes(
+        title_text="CLIENTES CANCELADOS",
+        titlefont=dict(size=14, family='Arial Black', color=colors['danger']),
+        tickfont=dict(size=12, family='Arial'),
+        gridcolor='rgba(0,0,0,0.1)',
+        showgrid=True,
+        secondary_y=False
+    )
+    fig_churn.update_yaxes(
+        title_text="TAXA DE CHURN (%)",
+        titlefont=dict(size=14, family='Arial Black', color='#ff6b6b'),
+        tickfont=dict(size=12, family='Arial'),
+        ticksuffix='%',
+        secondary_y=True
+    )
     
     fig_churn.update_layout(
-        height=400,
-        title_font_size=20,
-        title_x=0.5,
+        height=450,
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(size=12, family="Arial Black"),
+        margin=dict(t=80, b=50, l=80, r=80),
         legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+            x=0.02, y=0.98,
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1,
+            font=dict(size=12, family='Arial')
+        ),
+        annotations=[
+            dict(
+                text='📉 CHURN MENSAL (QUANTIDADE + PERCENTUAL)',
+                x=0.5, y=1.05,
+                xref='paper', yref='paper',
+                showarrow=False,
+                font=dict(size=22, family='Arial Black', color='#2c3e50')
+            )
+        ]
     )
     
     return {
