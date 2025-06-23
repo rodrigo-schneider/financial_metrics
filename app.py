@@ -158,51 +158,97 @@ class MetricsCalculator:
         last_day = calendar.monthrange(month_date.year, month_date.month)[1]
         return month_date.replace(day=last_day, hour=23, minute=59, second=59)
 
-# Funções de visualização simplificadas
+# Funções de visualização simplificadas e mais visuais
 def create_visualizations(monthly_metrics):
     if monthly_metrics.empty:
         return {}
     
-    colors = {'primary': '#1f77b4', 'success': '#2ca02c', 'warning': '#ff7f0e', 'danger': '#d62728'}
+    colors = {'primary': '#3b82f6', 'success': '#10b981', 'warning': '#f59e0b', 'danger': '#ef4444'}
     
-    # Gráfico de novos clientes
+    # Gráfico de novos clientes - mais simples e visual
     fig_customers = px.bar(
         monthly_metrics, x='mes_ano', y='novos_clientes',
-        title='📈 Novos Clientes por Mês',
-        color_discrete_sequence=[colors['primary']]
+        title='👥 Novos Clientes',
+        color_discrete_sequence=[colors['primary']],
+        text='novos_clientes'
     )
-    fig_customers.update_layout(showlegend=False, height=400, xaxis_tickangle=-45)
+    fig_customers.update_traces(texttemplate='%{text}', textposition='outside')
+    fig_customers.update_layout(
+        showlegend=False, 
+        height=350,
+        xaxis_title="",
+        yaxis_title="Clientes",
+        title_font_size=18,
+        title_x=0.5,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
     
-    # Gráfico de MRR
+    # Gráfico de MRR - linha mais grossa e visual
     fig_mrr = px.line(
         monthly_metrics, x='mes_ano', y='mrr',
-        title='💰 MRR (Monthly Recurring Revenue)',
-        markers=True, color_discrete_sequence=[colors['success']]
+        title='💰 Receita Mensal (MRR)',
+        markers=True, 
+        color_discrete_sequence=[colors['success']],
+        text='mrr'
     )
-    fig_mrr.update_layout(showlegend=False, height=400, xaxis_tickangle=-45)
+    fig_mrr.update_traces(
+        line=dict(width=4),
+        marker=dict(size=10),
+        texttemplate='R$ %{text:,.0f}',
+        textposition='top center'
+    )
+    fig_mrr.update_layout(
+        showlegend=False, 
+        height=350,
+        xaxis_title="",
+        yaxis_title="Receita (R$)",
+        title_font_size=18,
+        title_x=0.5,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
     
-    # Gráfico de ticket médio
-    fig_ticket = px.area(
+    # Gráfico de ticket médio - área mais suave
+    fig_ticket = px.bar(
         monthly_metrics, x='mes_ano', y='ticket_medio',
-        title='🎯 Ticket Médio por Mês',
-        color_discrete_sequence=[colors['warning']]
+        title='🎯 Valor Médio por Cliente',
+        color_discrete_sequence=[colors['warning']],
+        text='ticket_medio'
     )
-    fig_ticket.update_layout(showlegend=False, height=400, xaxis_tickangle=-45)
+    fig_ticket.update_traces(
+        texttemplate='R$ %{text:,.0f}',
+        textposition='outside'
+    )
+    fig_ticket.update_layout(
+        showlegend=False, 
+        height=350,
+        xaxis_title="",
+        yaxis_title="Valor (R$)",
+        title_font_size=18,
+        title_x=0.5,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
     
-    # Gráfico de churn
-    from plotly.subplots import make_subplots
-    fig_churn = make_subplots(specs=[[{"secondary_y": True}]])
-    fig_churn.add_trace(
-        go.Bar(x=monthly_metrics['mes_ano'], y=monthly_metrics['churn_clientes'],
-               name='Churn Clientes', marker_color=colors['danger']),
-        secondary_y=False
+    # Gráfico de churn - simples com barras
+    fig_churn = px.bar(
+        monthly_metrics, x='mes_ano', y='churn_clientes',
+        title='📉 Clientes que Cancelaram',
+        color_discrete_sequence=[colors['danger']],
+        text='churn_clientes'
     )
-    fig_churn.add_trace(
-        go.Scatter(x=monthly_metrics['mes_ano'], y=monthly_metrics['churn_mrr'],
-                   mode='lines+markers', name='Churn MRR'),
-        secondary_y=True
+    fig_churn.update_traces(texttemplate='%{text}', textposition='outside')
+    fig_churn.update_layout(
+        showlegend=False, 
+        height=350,
+        xaxis_title="",
+        yaxis_title="Cancelamentos",
+        title_font_size=18,
+        title_x=0.5,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
     )
-    fig_churn.update_layout(title='📉 Churn Mensal', height=400)
     
     return {
         'novos_clientes': fig_customers,
@@ -241,40 +287,63 @@ if page == "Dashboard":
         monthly_metrics = calculator.calculate_monthly_metrics()
         
         if not monthly_metrics.empty:
-            visualizations = create_visualizations(monthly_metrics)
-            
-            col1, col2, col3, col4 = st.columns(4)
+            # Cards de métricas principais - mais visuais
+            st.subheader("📊 Resumo Atual")
             
             latest_month = monthly_metrics['mes_ano'].max()
             latest_data = monthly_metrics[monthly_metrics['mes_ano'] == latest_month].iloc[0]
             
+            # Calcular totais gerais
+            total_customers = len(customers_df)
+            active_customers = len(customers_df[customers_df['status'] == 'Ativo'])
+            total_mrr = latest_data['mrr']
+            avg_ticket = latest_data['ticket_medio']
+            
+            # Cards grandes e visuais
+            col1, col2, col3, col4 = st.columns(4)
+            
             with col1:
-                st.metric(
-                    label="Novos Clientes (Último Mês)",
-                    value=int(latest_data['novos_clientes'])
-                )
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 2.5em; font-weight: bold;">{total_customers}</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 1.1em;">Total de Clientes</p>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col2:
-                st.metric(
-                    label="MRR (Último Mês)",
-                    value=f"R$ {latest_data['mrr']:,.2f}"
-                )
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 2.5em; font-weight: bold;">{active_customers}</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 1.1em;">Clientes Ativos</p>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col3:
-                st.metric(
-                    label="Ticket Médio (Último Mês)",
-                    value=f"R$ {latest_data['ticket_medio']:,.2f}"
-                )
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 2.5em; font-weight: bold;">R$ {total_mrr:,.0f}</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 1.1em;">Receita Mensal</p>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col4:
-                total_active = len(customers_df[customers_df['status'] == 'Ativo'])
-                churn_rate = (latest_data['churn_clientes'] / max(total_active, 1)) * 100 if total_active > 0 else 0
-                st.metric(
-                    label="Taxa de Churn (%)",
-                    value=f"{churn_rate:.1f}%"
-                )
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); 
+                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 2.5em; font-weight: bold;">R$ {avg_ticket:,.0f}</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 1.1em;">Ticket Médio</p>
+                </div>
+                """, unsafe_allow_html=True)
             
             st.markdown("---")
+            
+            # Gráficos simplificados
+            st.subheader("📈 Evolução Mensal")
+            
+            visualizations = create_visualizations(monthly_metrics)
             
             col1, col2 = st.columns(2)
             
@@ -286,31 +355,75 @@ if page == "Dashboard":
                 st.plotly_chart(visualizations['mrr'], use_container_width=True)
                 st.plotly_chart(visualizations['churn'], use_container_width=True)
             
-            st.subheader("📋 Dados Detalhados")
-            st.dataframe(monthly_metrics, use_container_width=True)
+            # Tabela simplificada e mais visual
+            st.subheader("📋 Resumo por Mês")
+            
+            # Formatar tabela de forma mais simples
+            display_data = monthly_metrics[['mes_ano', 'novos_clientes', 'mrr', 'ticket_medio', 'churn_clientes']].copy()
+            display_data.columns = ['Mês', 'Novos Clientes', 'Receita (R$)', 'Ticket Médio (R$)', 'Cancelamentos']
+            
+            # Formatar valores monetários
+            for i in range(len(display_data)):
+                display_data.iloc[i, 2] = f"R$ {display_data.iloc[i, 2]:,.0f}"  # Receita
+                display_data.iloc[i, 3] = f"R$ {display_data.iloc[i, 3]:,.0f}"  # Ticket Médio
+            
+            st.dataframe(display_data, use_container_width=True, hide_index=True)
         else:
             st.info("📊 Aguardando dados para calcular métricas mensais.")
 
 elif page == "Inserir Dados":
-    st.header("📝 Inserir Novos Dados")
+    st.header("📝 Adicionar Novo Cliente")
     
-    st.subheader("👥 Adicionar Cliente")
+    # Formulário mais visual e simples
+    st.markdown("""
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+        <h4 style="margin-top: 0; color: #333;">Preencha os dados do cliente</h4>
+    </div>
+    """, unsafe_allow_html=True)
     
-    with st.form("customer_form"):
+    with st.form("customer_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         
         with col1:
-            customer_name = st.text_input("Nome do Cliente", placeholder="Ex: João Silva")
-            signup_date = st.date_input("Data de Cadastro", value=date.today())
-            plan_value = st.number_input("Valor do Plano Mensal (R$)", min_value=0.0, step=0.01)
+            customer_name = st.text_input(
+                "Nome Completo", 
+                placeholder="Ex: João Silva",
+                help="Digite o nome completo do cliente"
+            )
+            signup_date = st.date_input(
+                "Data de Cadastro", 
+                value=date.today(),
+                help="Quando o cliente se cadastrou"
+            )
         
         with col2:
-            status = st.selectbox("Status", ["Ativo", "Cancelado"])
-            cancel_date = None
-            if status == "Cancelado":
-                cancel_date = st.date_input("Data de Cancelamento", value=date.today())
+            plan_value = st.number_input(
+                "Valor do Plano Mensal (R$)", 
+                min_value=0.0, 
+                step=1.0,
+                help="Quanto o cliente paga por mês"
+            )
+            status = st.selectbox(
+                "Status do Cliente", 
+                ["Ativo", "Cancelado"],
+                help="Situação atual do cliente"
+            )
         
-        submitted = st.form_submit_button("Adicionar Cliente")
+        # Só mostrar data de cancelamento se status for "Cancelado"
+        cancel_date = None
+        if status == "Cancelado":
+            cancel_date = st.date_input(
+                "Data de Cancelamento", 
+                value=date.today(),
+                help="Quando o cliente cancelou"
+            )
+        
+        # Botão mais visual
+        submitted = st.form_submit_button(
+            "➕ Adicionar Cliente",
+            use_container_width=True,
+            type="primary"
+        )
         
         if submitted:
             if customer_name and plan_value > 0:
@@ -318,12 +431,13 @@ elif page == "Inserir Dados":
                     customer_name, signup_date, plan_value, status, cancel_date
                 )
                 if success:
-                    st.success("✅ Cliente adicionado com sucesso!")
+                    st.success("Cliente adicionado com sucesso!")
+                    st.balloons()
                     st.rerun()
                 else:
-                    st.error("❌ Erro ao adicionar cliente!")
+                    st.error("Erro ao adicionar cliente!")
             else:
-                st.error("❌ Por favor, preencha todos os campos obrigatórios.")
+                st.error("Preencha o nome e o valor do plano!")
 
 elif page == "Gerenciar Dados":
     st.header("🗂️ Gerenciar Dados Existentes")
