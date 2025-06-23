@@ -1007,6 +1007,14 @@ elif page == "Inserir Dados":
     if 'form_submitted' not in st.session_state:
         st.session_state.form_submitted = False
     
+    # Status do cliente fora do formulário para permitir interatividade
+    status = st.selectbox(
+        "Status do Cliente", 
+        ["Ativo", "Cancelado"],
+        help="Situação atual do cliente",
+        key="status_outside_form"
+    )
+    
     # Usar st.form para garantir limpeza automática
     with st.form("add_customer_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -1030,11 +1038,9 @@ elif page == "Inserir Dados":
                 step=1.0,
                 help="Quanto o cliente paga por mês em dólares"
             )
-            status = st.selectbox(
-                "Status do Cliente", 
-                ["Ativo", "Cancelado"],
-                help="Situação atual do cliente"
-            )
+            
+            # Mostrar status selecionado como informação
+            st.info(f"Status selecionado: **{status}**")
         
         # Mostrar data de cancelamento automaticamente quando status for "Cancelado"
         cancel_date = None
@@ -1136,6 +1142,10 @@ elif page == "Inserir Dados":
                             """)
                         
                         st.balloons()
+                        
+                        # Resetar status para Ativo após salvamento
+                        st.session_state.status_outside_form = "Ativo"
+                        
                         st.rerun()
                     else:
                         with log_container:
