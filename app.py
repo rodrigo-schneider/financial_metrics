@@ -232,10 +232,27 @@ class DataManager:
                 shutil.copy2(backup_file, self.customers_file)
             return False
 
-# Calculadora de métricas simplificada
+# Calculadora de métricas corrigida e robusta
 class MetricsCalculator:
     def __init__(self, customers_df):
-        self.customers_df = customers_df
+        self.customers_df = customers_df.copy()
+        self._prepare_data()
+    
+    def _prepare_data(self):
+        """Prepara e valida os dados para cálculos"""
+        if self.customers_df.empty:
+            return
+            
+        # Garantir que as datas estão no formato datetime
+        self.customers_df['signup_date'] = pd.to_datetime(self.customers_df['signup_date'], errors='coerce')
+        self.customers_df['cancel_date'] = pd.to_datetime(self.customers_df['cancel_date'], errors='coerce')
+        
+        # Garantir que plan_value é numérico
+        self.customers_df['plan_value'] = pd.to_numeric(self.customers_df['plan_value'], errors='coerce')
+        self.customers_df['plan_value'] = self.customers_df['plan_value'].fillna(0)
+        
+        # Remover linhas com dados inválidos
+        self.customers_df = self.customers_df.dropna(subset=['signup_date'])
     
     def calculate_monthly_metrics(self):
         if self.customers_df.empty:
@@ -254,79 +271,122 @@ class MetricsCalculator:
             
             metrics_list.append({
                 'mes_ano': month_str,
-                'novos_clientes': new_customers,
-                'mrr': mrr,
-                'ticket_medio': avg_ticket,
-                'churn_clientes': churn_customers,
-                'churn_mrr': churn_mrr
+                'novos_clientes': int(new_customers),
+                'mrr': float(mrr),
+                'ticket_medio': float(avg_ticket),
+                'churn_clientes': int(churn_customers),
+                'churn_mrr': float(churn_mrr)
             })
         
         return pd.DataFrame(metrics_list)
     
     def _get_analysis_period(self):
-        dates = list(self.customers_df['signup_date'].dropna())
-        cancel_dates = self.customers_df['cancel_date'].dropna()
-        if not cancel_dates.empty:
-            dates.extend(cancel_dates)
-        
-        if not dates:
+        """Determina o período de análise com base nos dados"""
+        if self.customers_df.empty:
             now = datetime.now()
             return now.replace(day=1), now
         
-        min_date = min(dates).replace(day=1)
-        end_date = datetime.now().replace(day=1)
-        return min_date, end_date
+        # Encontrar a primeira data de cadastro
+        min_signup = self.customers_df['signup_date'].min()
+        
+        # Encontrar a data mais recente (cadastro ou cancelamento)
+        max_date = self.customers_df['signup_date'].max()
+        cancel_dates = self.customers_df['cancel_date'].dropna()
+        if not cancel_dates.empty:
+            max_cancel = cancel_dates.max()
+            max_date = max(max_date, max_cancel)
+        
+        # Garantir que analisamos até o mês atual
+        now = datetime.now()
+        end_date = max(max_date, now)
+        
+        # Converter para primeiro dia do mês
+        start_date = min_signup.replace(day=1)
+        end_date = end_date.replace(day=1)
+        
+        return start_date, end_date
     
     def _generate_month_list(self, start_date, end_date):
+        """Gera lista de primeiros dias de cada mês no período"""
         months = []
         current = start_date
+        
         while current <= end_date:
             months.append(current)
+            # Avançar para o próximo mês
             if current.month == 12:
                 current = current.replace(year=current.year + 1, month=1)
             else:
                 current = current.replace(month=current.month + 1)
+        
         return months
     
     def _calculate_new_customers(self, month_date):
-        month_start = month_date
+        """Calcula novos clientes que se cadastraram no mês"""
+        month_start = month_date.replace(day=1)
         month_end = self._get_month_end(month_date)
+        
         new_customers = self.customers_df[
             (self.customers_df['signup_date'] >= month_start) &
             (self.customers_df['signup_date'] <= month_end)
         ]
+        
         return len(new_customers)
     
     def _calculate_mrr(self, month_date):
+        """Calcula MRR (clientes ativos no final do mês)"""
         month_end = self._get_month_end(month_date)
+        
+        # Clientes que já tinham se cadastrado até o final do mês
+        # E que não tinham cancelado até o final do mês
         active_customers = self.customers_df[
             (self.customers_df['signup_date'] <= month_end) &
-            ((self.customers_df['cancel_date'].isna()) | 
-             (self.customers_df['cancel_date'] > month_end))
+            (
+                (self.customers_df['cancel_date'].isna()) |
+                (self.customers_df['cancel_date'] > month_end)
+            )
         ]
+        
         return active_customers['plan_value'].sum()
     
     def _calculate_avg_ticket(self, month_date):
+        """Calcula ticket médio dos clientes ativos no final do mês"""
         month_end = self._get_month_end(month_date)
+        
         active_customers = self.customers_df[
             (self.customers_df['signup_date'] <= month_end) &
-            ((self.customers_df['cancel_date'].isna()) | 
-             (self.customers_df['cancel_date'] > month_end))
+            (
+                (self.customers_df['cancel_date'].isna()) |
+                (self.customers_df['cancel_date'] > month_end)
+            )
         ]
-        return active_customers['plan_value'].mean() if not active_customers.empty else 0.0
+        
+        if active_customers.empty:
+            return 0.0
+        
+        return active_customers['plan_value'].mean()
     
     def _calculate_churn(self, month_date):
-        month_start = month_date
+        """Calcula churn de clientes e MRR no mês"""
+        month_start = month_date.replace(day=1)
         month_end = self._get_month_end(month_date)
+        
+        # Clientes que cancelaram durante o mês
         churned_customers = self.customers_df[
             (self.customers_df['cancel_date'] >= month_start) &
-            (self.customers_df['cancel_date'] <= month_end)
+            (self.customers_df['cancel_date'] <= month_end) &
+            (self.customers_df['cancel_date'].notna())
         ]
-        return len(churned_customers), churned_customers['plan_value'].sum()
+        
+        churn_count = len(churned_customers)
+        churn_value = churned_customers['plan_value'].sum()
+        
+        return churn_count, churn_value
     
     def _get_month_end(self, month_date):
+        """Retorna o último momento do mês"""
         last_day = calendar.monthrange(month_date.year, month_date.month)[1]
-        return month_date.replace(day=last_day, hour=23, minute=59, second=59)
+        return month_date.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
 
 # Funções de visualização simplificadas e mais visuais
 def create_visualizations(monthly_metrics):
