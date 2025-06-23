@@ -1193,14 +1193,22 @@ elif page == "Gerenciar Dados":
     if not customers_df.empty:
         display_df = customers_df.copy()
         
-        # Formatar datas para exibição
+        # Formatar datas para exibição com tratamento robusto
         if 'signup_date' in display_df.columns:
+            # Converter para datetime primeiro
             display_df['signup_date'] = pd.to_datetime(display_df['signup_date'], errors='coerce')
-            display_df['signup_date'] = display_df['signup_date'].dt.strftime('%Y-%m-%d').fillna('Data inválida')
+            # Aplicar formatação apenas aos valores válidos
+            display_df['signup_date'] = display_df['signup_date'].apply(
+                lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else 'Data inválida'
+            )
         
         if 'cancel_date' in display_df.columns:
+            # Converter para datetime primeiro
             display_df['cancel_date'] = pd.to_datetime(display_df['cancel_date'], errors='coerce')
-            display_df['cancel_date'] = display_df['cancel_date'].dt.strftime('%Y-%m-%d').fillna('N/A')
+            # Aplicar formatação apenas aos valores válidos
+            display_df['cancel_date'] = display_df['cancel_date'].apply(
+                lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else 'N/A'
+            )
         
         # Formatar valores monetários
         if 'plan_value' in display_df.columns:
