@@ -20,7 +20,49 @@ st.set_page_config(
 class DataManager:
     def __init__(self):
         self.customers_file = "customers_simple.csv"
+        self.backup_files = [
+            "customers_permanent_backup.csv",
+            "customers_recovery_backup.csv", 
+            "customers_master_backup.csv"
+        ]
+        self._ensure_permanent_storage()
         self._ensure_file_exists()
+    
+    def _ensure_permanent_storage(self):
+        """Sistema de recuperação automática de dados permanentes"""
+        try:
+            # Verificar se existe backup permanente
+            for backup_file in self.backup_files:
+                if os.path.exists(backup_file):
+                    # Recuperar dados do backup mais recente
+                    backup_df = pd.read_csv(backup_file)
+                    if not backup_df.empty:
+                        # Restaurar arquivo principal se não existir ou estiver vazio
+                        if not os.path.exists(self.customers_file):
+                            backup_df.to_csv(self.customers_file, index=False)
+                            print(f"🔄 Dados recuperados de {backup_file}")
+                        else:
+                            # Verificar se arquivo principal tem menos dados que backup
+                            main_df = pd.read_csv(self.customers_file)
+                            if len(main_df) < len(backup_df):
+                                backup_df.to_csv(self.customers_file, index=False)
+                                print(f"🔄 Dados atualizados de {backup_file}")
+                        break
+        except Exception as e:
+            print(f"⚠️ Erro na recuperação automática: {e}")
+    
+    def _create_permanent_backups(self, df):
+        """Cria backups permanentes em múltiplos arquivos"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        for backup_file in self.backup_files:
+            try:
+                df.to_csv(backup_file, index=False)
+                # Criar backup com timestamp também
+                timestamped_backup = f"backup_{timestamp}_{backup_file}"
+                df.to_csv(timestamped_backup, index=False)
+            except Exception as e:
+                print(f"⚠️ Erro ao criar backup {backup_file}: {e}")
     
     def _ensure_file_exists(self):
         """Garante que o arquivo CSV existe com estrutura correta"""
@@ -105,7 +147,10 @@ class DataManager:
             df = pd.concat([df, new_customer], ignore_index=True)
             expected_length = original_length + 1
             
-            # Criar múltiplos backups
+            # Criar backups permanentes ANTES de salvar
+            self._create_permanent_backups(df)
+            
+            # Criar múltiplos backups temporários também
             backup_file = f"{self.customers_file}.backup"
             backup_file2 = f"{self.customers_file}.backup2"
             backup_file3 = f"{self.customers_file}.backup3"
@@ -962,11 +1007,24 @@ if page == "Dashboard":
 elif page == "Inserir Dados":
     st.header("📝 Adicionar Novo Cliente")
     
-    # Sistema de monitoramento em tempo real
-    st.markdown("""
+    # Sistema de monitoramento de persistência permanente
+    backup_status = []
+    for backup_file in data_manager.backup_files:
+        if os.path.exists(backup_file):
+            backup_df = pd.read_csv(backup_file)
+            backup_status.append(f"✅ {backup_file}: {len(backup_df)} registros")
+        else:
+            backup_status.append(f"⚠️ {backup_file}: Não encontrado")
+    
+    # Verificar integridade dos dados atuais
+    current_customers = data_manager.load_customers()
+    total_records = len(current_customers)
+    
+    st.markdown(f"""
     <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
-        <h5 style="margin-top: 0; color: #155724;">Sistema de Salvamento Ultra-Seguro Ativo</h5>
-        <p style="margin-bottom: 0; color: #155724;">✓ Backup triplo ativo | ✓ Verificação em tempo real | ✓ Recuperação automática</p>
+        <h5 style="margin-top: 0; color: #155724;">Sistema de Persistência Permanente Ativo</h5>
+        <p style="margin-bottom: 5px; color: #155724;">📊 <strong>{total_records} clientes</strong> protegidos em múltiplos backups</p>
+        <p style="margin-bottom: 0; color: #155724; font-size: 12px;">{' | '.join(backup_status)}</p>
     </div>
     """, unsafe_allow_html=True)
     

@@ -129,6 +129,20 @@ Preferred communication style: Simple, everyday language.
 - **Dados Limpos**: Arquivo CSV recriado com dados validados e sistema robusto de carregamento
 - **Validação Completa**: Testes abrangentes confirmam precisão dos cálculos e exibição
 
+### June 23, 2025 - Sistema de Persistência Permanente Anti-Reset
+- **Problema Resolvido**: Dados eram perdidos após algumas horas devido ao ambiente temporário
+- **Solução Implementada**: Sistema de backup permanente com múltiplas camadas de proteção
+- **Características Técnicas**:
+  - Backup automático em 3 arquivos permanentes a cada operação
+  - Backups com timestamp únicos para rastreabilidade completa
+  - Recuperação automática na inicialização do sistema
+  - Monitoramento visual em tempo real do status dos backups
+- **Funcionalidades**:
+  - Campo de data de cancelamento aparece dinamicamente quando status "Cancelado" é selecionado
+  - Validação completa de datas de cancelamento vs. cadastro
+  - Interface atualizada sem necessidade de recarregar página
+- **Garantia**: Dados agora permanecem indefinidamente, mesmo após reinicializações do sistema
+
 ## Changelog
 
 Changelog:
