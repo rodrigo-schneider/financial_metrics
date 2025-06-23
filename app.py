@@ -1003,20 +1003,8 @@ elif page == "Inserir Dados":
     </div>
     """, unsafe_allow_html=True)
     
-    # Inicializar session state para controle de formulário
-    if 'form_submitted' not in st.session_state:
-        st.session_state.form_submitted = False
-    
-    # Status do cliente fora do formulário para permitir interatividade
-    status = st.selectbox(
-        "Status do Cliente", 
-        ["Ativo", "Cancelado"],
-        help="Situação atual do cliente",
-        key="status_outside_form"
-    )
-    
-    # Usar st.form para garantir limpeza automática
-    with st.form("add_customer_form", clear_on_submit=True):
+    # Versão simplificada e funcional do formulário
+    with st.form("customer_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1038,11 +1026,13 @@ elif page == "Inserir Dados":
                 step=1.0,
                 help="Quanto o cliente paga por mês em dólares"
             )
-            
-            # Mostrar status selecionado como informação
-            st.info(f"Status selecionado: **{status}**")
+            status = st.selectbox(
+                "Status do Cliente", 
+                ["Ativo", "Cancelado"],
+                help="Situação atual do cliente"
+            )
         
-        # Mostrar data de cancelamento automaticamente quando status for "Cancelado"
+        # Campo condicional para data de cancelamento
         cancel_date = None
         if status == "Cancelado":
             cancel_date = st.date_input(
@@ -1051,7 +1041,7 @@ elif page == "Inserir Dados":
                 help="Quando o cliente cancelou"
             )
         
-        # Botão de submissão do formulário
+        # Botão de submissão
         submitted = st.form_submit_button(
             "➕ Adicionar Cliente",
             use_container_width=True,
