@@ -149,6 +149,17 @@ Preferred communication style: Simple, everyday language.
   - Falhas em qualquer método de armazenamento individual
   - Ambiente de produção temporário do Replit
 
+### June 23, 2025 - Interface Brasileira Otimizada
+- **Problema Resolvido**: Campos de entrada não aceitavam formato brasileiro de valores e datas
+- **Solução Implementada**: Sistema de parsing inteligente para formatos locais
+- **Funcionalidades de Entrada**:
+  - **Valores Monetários**: Aceita 4.000,00 (brasileiro) e 4000.00 (americano)
+  - **Datas**: Formato DD/MM/AAAA (15/01/2024) em campos de texto
+  - **Validação Inteligente**: Detecta automaticamente o formato de entrada
+  - **Feedback Visual**: Mensagens de erro claras em português
+- **Compatibilidade**: Funciona com copy/paste de planilhas e sistemas brasileiros
+- **Validação Robusta**: Impede entrada de dados inválidos com mensagens específicas
+
 ## Changelog
 
 Changelog:

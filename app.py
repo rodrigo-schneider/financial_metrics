@@ -1097,20 +1097,19 @@ elif page == "Inserir Dados":
             help="Digite o nome completo do cliente",
             key="customer_name"
         )
-        signup_date = st.date_input(
-            "Data de Cadastro", 
-            value=date.today(),
-            help="Quando o cliente se cadastrou",
-            key="signup_date"
+        signup_date_str = st.text_input(
+            "Data de Cadastro (DD/MM/AAAA)", 
+            placeholder="Ex: 15/01/2024",
+            help="Data quando o cliente se cadastrou",
+            key="signup_date_str"
         )
     
     with col2:
-        plan_value = st.number_input(
+        plan_value_str = st.text_input(
             "Valor do Plano Mensal (USD)", 
-            min_value=0.0, 
-            step=1.0,
-            help="Quanto o cliente paga por mês em dólares",
-            key="plan_value"
+            placeholder="Ex: 4.000,00 ou 4000.00",
+            help="Valor que o cliente paga por mês (aceita vírgula ou ponto)",
+            key="plan_value_str"
         )
         status = st.selectbox(
             "Status do Cliente", 
@@ -1120,13 +1119,13 @@ elif page == "Inserir Dados":
         )
     
     # Mostrar data de cancelamento automaticamente quando status for "Cancelado"
-    cancel_date = None
+    cancel_date_str = None
     if status == "Cancelado":
-        cancel_date = st.date_input(
-            "Data de Cancelamento", 
-            value=date.today(),
-            help="Quando o cliente cancelou",
-            key="cancel_date"
+        cancel_date_str = st.text_input(
+            "Data de Cancelamento (DD/MM/AAAA)", 
+            placeholder="Ex: 23/06/2025",
+            help="Data quando o cliente cancelou",
+            key="cancel_date_str"
         )
     
     # Botão de submissão
@@ -1135,20 +1134,61 @@ elif page == "Inserir Dados":
         use_container_width=True,
         type="primary"
     ):
-        # Validações detalhadas no frontend
+        # Validações e conversões detalhadas no frontend
         errors = []
+        parsed_signup_date = None
+        parsed_cancel_date = None
+        parsed_plan_value = None
         
+        # Validar nome
         if not customer_name or not customer_name.strip():
             errors.append("❌ Nome do cliente é obrigatório")
         
-        if plan_value <= 0:
-            errors.append("❌ Valor do plano deve ser maior que zero")
+        # Validar e converter valor do plano
+        if not plan_value_str or not plan_value_str.strip():
+            errors.append("❌ Valor do plano é obrigatório")
+        else:
+            try:
+                # Lógica melhorada para aceitar formatos brasileiros e americanos
+                value_str = plan_value_str.strip()
+                
+                # Se contém vírgula, assumir formato brasileiro (1.000,00)
+                if "," in value_str:
+                    # Remover pontos (milhares) e converter vírgula para ponto decimal
+                    value_clean = value_str.replace(".", "").replace(",", ".")
+                else:
+                    # Formato americano ou simples (1000.00 ou 1000)
+                    value_clean = value_str
+                
+                parsed_plan_value = float(value_clean)
+                if parsed_plan_value <= 0:
+                    errors.append("❌ Valor do plano deve ser maior que zero")
+            except ValueError:
+                errors.append("❌ Valor do plano inválido (use formato: 4.000,00 ou 4000.00)")
         
-        if status == "Cancelado" and not cancel_date:
-            errors.append("❌ Data de cancelamento é obrigatória para clientes cancelados")
+        # Validar e converter data de cadastro
+        if not signup_date_str or not signup_date_str.strip():
+            errors.append("❌ Data de cadastro é obrigatória")
+        else:
+            try:
+                # Aceitar formato DD/MM/AAAA
+                day, month, year = signup_date_str.split("/")
+                parsed_signup_date = date(int(year), int(month), int(day))
+            except ValueError:
+                errors.append("❌ Data de cadastro inválida (use formato: DD/MM/AAAA)")
         
-        if status == "Cancelado" and cancel_date and cancel_date < signup_date:
-            errors.append("❌ Data de cancelamento não pode ser anterior à data de cadastro")
+        # Validar data de cancelamento se necessário
+        if status == "Cancelado":
+            if not cancel_date_str or not cancel_date_str.strip():
+                errors.append("❌ Data de cancelamento é obrigatória para clientes cancelados")
+            else:
+                try:
+                    day, month, year = cancel_date_str.split("/")
+                    parsed_cancel_date = date(int(year), int(month), int(day))
+                    if parsed_signup_date and parsed_cancel_date < parsed_signup_date:
+                        errors.append("❌ Data de cancelamento não pode ser anterior à data de cadastro")
+                except ValueError:
+                    errors.append("❌ Data de cancelamento inválida (use formato: DD/MM/AAAA)")
         
         if errors:
             for error in errors:
@@ -1157,11 +1197,11 @@ elif page == "Inserir Dados":
             # Mostrar dados que serão salvos para confirmação
             with st.expander("📋 Dados que serão salvos:", expanded=True):
                 st.write(f"**Nome:** {customer_name}")
-                st.write(f"**Data de Cadastro:** {signup_date}")
-                st.write(f"**Valor Mensal:** ${plan_value:,.2f} USD")
+                st.write(f"**Data de Cadastro:** {parsed_signup_date.strftime('%d/%m/%Y') if parsed_signup_date else 'Data inválida'}")
+                st.write(f"**Valor Mensal:** ${parsed_plan_value:,.2f} USD")
                 st.write(f"**Status:** {status}")
-                if cancel_date:
-                    st.write(f"**Data de Cancelamento:** {cancel_date}")
+                if parsed_cancel_date:
+                    st.write(f"**Data de Cancelamento:** {parsed_cancel_date.strftime('%d/%m/%Y')}")
                 
                 # Processo de salvamento com feedback em tempo real
                 progress_bar = st.progress(0)
@@ -1179,7 +1219,7 @@ elif page == "Inserir Dados":
                 progress_bar.progress(30)
                 
                 success = data_manager.add_customer(
-                    customer_name, signup_date, plan_value, status, cancel_date
+                    customer_name, parsed_signup_date, parsed_plan_value, status, parsed_cancel_date
                 )
                 
                 progress_bar.progress(60)
@@ -1202,7 +1242,7 @@ elif page == "Inserir Dados":
                     # Verificar se é realmente o cliente correto
                     latest_customer = customers_after.iloc[-1]
                     if (latest_customer['name'] == customer_name and 
-                        abs(latest_customer['plan_value'] - plan_value) < 0.01):
+                        abs(latest_customer['plan_value'] - parsed_plan_value) < 0.01):
                         
                         with log_container:
                             st.success("🎉 Cliente adicionado com sucesso!")
@@ -1221,7 +1261,7 @@ elif page == "Inserir Dados":
                     else:
                         with log_container:
                             st.error("⚠️ Dados salvos não conferem. Verificando...")
-                            st.write(f"Esperado: {customer_name}, ${plan_value}")
+                            st.write(f"Esperado: {customer_name}, ${parsed_plan_value}")
                             st.write(f"Salvo: {latest_customer['name']}, ${latest_customer['plan_value']}")
                 else:
                     # Falha no salvamento
