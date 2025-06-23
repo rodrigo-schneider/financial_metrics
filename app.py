@@ -694,11 +694,17 @@ if page == "Dashboard":
             latest_month = monthly_metrics['mes_ano'].max()
             latest_data = monthly_metrics[monthly_metrics['mes_ano'] == latest_month].iloc[0]
             
-            # Calcular totais gerais (valores diretos em USD)
+            # Calcular totais gerais corretamente (valores diretos em USD)
             total_customers = len(customers_df)
-            active_customers = len(customers_df[customers_df['status'] == 'Ativo'])
-            total_mrr_usd = latest_data['mrr']
-            avg_ticket_usd = latest_data['ticket_medio']
+            active_customers_df = customers_df[customers_df['status'] == 'Ativo']
+            active_customers = len(active_customers_df)
+            
+            # Calcular MRR atual baseado em clientes ativos
+            current_mrr = active_customers_df['plan_value'].sum() if not active_customers_df.empty else 0
+            
+            # Usar dados calculados ou MRR direto dos clientes ativos
+            total_mrr_usd = current_mrr
+            avg_ticket_usd = active_customers_df['plan_value'].mean() if not active_customers_df.empty else 0
             churn_count = latest_data['churn_clientes']
             churn_mrr_usd = latest_data['churn_mrr']
             
@@ -1186,6 +1192,20 @@ elif page == "Gerenciar Dados":
     
     if not customers_df.empty:
         display_df = customers_df.copy()
+        
+        # Formatar datas para exibição
+        if 'signup_date' in display_df.columns:
+            display_df['signup_date'] = pd.to_datetime(display_df['signup_date'], errors='coerce')
+            display_df['signup_date'] = display_df['signup_date'].dt.strftime('%Y-%m-%d').fillna('Data inválida')
+        
+        if 'cancel_date' in display_df.columns:
+            display_df['cancel_date'] = pd.to_datetime(display_df['cancel_date'], errors='coerce')
+            display_df['cancel_date'] = display_df['cancel_date'].dt.strftime('%Y-%m-%d').fillna('N/A')
+        
+        # Formatar valores monetários
+        if 'plan_value' in display_df.columns:
+            display_df['plan_value'] = display_df['plan_value'].apply(lambda x: f"${x:,.0f}")
+        
         display_df.index = display_df.index + 1
         st.dataframe(display_df, use_container_width=True)
         
