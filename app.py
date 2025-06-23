@@ -325,7 +325,7 @@ data_manager = init_data_manager()
 
 # Interface principal
 st.title("📊 Dashboard de Métricas de Clientes")
-st.markdown("💵 **Valores exibidos em USD** | Taxa: R$ 5,00 = $1,00")
+st.markdown("💵 **Valores exibidos em USD**")
 st.markdown("---")
 
 st.sidebar.title("Navegação")
