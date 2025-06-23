@@ -1142,10 +1142,6 @@ elif page == "Inserir Dados":
                             """)
                         
                         st.balloons()
-                        
-                        # Resetar status para Ativo após salvamento
-                        st.session_state.status_outside_form = "Ativo"
-                        
                         st.rerun()
                     else:
                         with log_container:
