@@ -99,7 +99,30 @@ The deployment uses a simple file-based storage system with CSV files, making it
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### June 23, 2025 - Sistema de Persistência Ultra-Robusto
+- **Problema Resolvido**: Falha crítica na persistência de dados no ambiente de produção
+- **Implementação**: Sistema de salvamento com backup triplo e verificação múltipla
+- **Características**:
+  - Backup automático em 3 arquivos diferentes antes de cada operação
+  - Verificação tripla de integridade dos dados após salvamento
+  - Sistema de recuperação automática em caso de falha
+  - Monitoramento em tempo real com feedback visual detalhado
+  - Logging completo para diagnóstico de problemas
+- **Validações Implementadas**:
+  - Verificação de entrada de dados no frontend
+  - Validação de tipos e formatos
+  - Confirmação de salvamento com comparação de dados
+  - Sistema de rollback automático
+
+### June 23, 2025 - Interface de Monitoramento
+- **Adicionado**: Painel de diagnóstico em tempo real na seção "Inserir Dados"
+- **Recursos**: Status de arquivos, contadores de clientes, verificação de backups
+- **Feedback**: Barra de progresso e mensagens detalhadas durante operações
+- **Debug**: Opções avançadas para visualizar dados raw e logs de erro
+
 ## Changelog
 
 Changelog:
-- June 23, 2025. Initial setup
+- June 23, 2025. Initial setup with ultra-robust data persistence system

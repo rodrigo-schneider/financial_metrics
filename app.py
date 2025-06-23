@@ -6,6 +6,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime, date
 import os
 import calendar
+import shutil
 
 # Configuração da página
 st.set_page_config(
@@ -15,52 +16,220 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Gerenciador de dados simplificado
+# Gerenciador de dados robusto com validações
 class DataManager:
     def __init__(self):
         self.customers_file = "customers_simple.csv"
         self._ensure_file_exists()
     
     def _ensure_file_exists(self):
-        if not os.path.exists(self.customers_file):
+        """Garante que o arquivo CSV existe com estrutura correta"""
+        try:
+            if not os.path.exists(self.customers_file):
+                customers_df = pd.DataFrame(columns=[
+                    'name', 'signup_date', 'plan_value', 'status', 'cancel_date'
+                ])
+                customers_df.to_csv(self.customers_file, index=False)
+            else:
+                # Verificar se arquivo tem estrutura correta
+                df = pd.read_csv(self.customers_file)
+                expected_columns = ['name', 'signup_date', 'plan_value', 'status', 'cancel_date']
+                if not all(col in df.columns for col in expected_columns):
+                    # Recriar arquivo com estrutura correta
+                    customers_df = pd.DataFrame(columns=expected_columns)
+                    customers_df.to_csv(self.customers_file, index=False)
+        except Exception as e:
+            # Em caso de erro, criar arquivo novo
             customers_df = pd.DataFrame(columns=[
                 'name', 'signup_date', 'plan_value', 'status', 'cancel_date'
             ])
             customers_df.to_csv(self.customers_file, index=False)
     
     def load_customers(self):
+        """Carrega dados de clientes com tratamento robusto de erros"""
         try:
+            if not os.path.exists(self.customers_file):
+                self._ensure_file_exists()
+            
             df = pd.read_csv(self.customers_file)
-            if not df.empty:
-                df['signup_date'] = pd.to_datetime(df['signup_date'])
+            
+            if df.empty:
+                return pd.DataFrame(columns=['name', 'signup_date', 'plan_value', 'status', 'cancel_date'])
+            
+            # Converter datas com tratamento de erro
+            try:
+                df['signup_date'] = pd.to_datetime(df['signup_date'], errors='coerce')
                 df['cancel_date'] = pd.to_datetime(df['cancel_date'], errors='coerce')
+            except:
+                pass
+            
+            # Garantir tipos corretos
+            try:
+                df['plan_value'] = pd.to_numeric(df['plan_value'], errors='coerce')
+                df['plan_value'] = df['plan_value'].fillna(0)
+            except:
+                df['plan_value'] = 0
+            
             return df
-        except:
+            
+        except Exception as e:
+            # Em caso de erro, retornar DataFrame vazio
             return pd.DataFrame(columns=['name', 'signup_date', 'plan_value', 'status', 'cancel_date'])
     
     def add_customer(self, name, signup_date, plan_value, status, cancel_date=None):
+        """Adiciona cliente com validações e salvamento ultra-robusto"""
         try:
+            # Validações de entrada
+            if not name or not name.strip():
+                return False
+            
+            if not isinstance(plan_value, (int, float)) or plan_value <= 0:
+                return False
+            
+            if status not in ['Ativo', 'Cancelado']:
+                return False
+            
+            # Carregar dados existentes
             df = self.load_customers()
-            new_customer = pd.DataFrame({
-                'name': [name],
-                'signup_date': [signup_date],
-                'plan_value': [plan_value],
-                'status': [status],
-                'cancel_date': [cancel_date if cancel_date else None]
-            })
+            original_length = len(df)
+            
+            # Preparar novo cliente
+            new_customer_data = {
+                'name': str(name).strip(),
+                'signup_date': pd.to_datetime(signup_date).strftime('%Y-%m-%d'),
+                'plan_value': float(plan_value),
+                'status': str(status),
+                'cancel_date': pd.to_datetime(cancel_date).strftime('%Y-%m-%d') if cancel_date else None
+            }
+            
+            # Criar DataFrame para novo cliente
+            new_customer = pd.DataFrame([new_customer_data])
+            
+            # Concatenar dados
             df = pd.concat([df, new_customer], ignore_index=True)
-            df.to_csv(self.customers_file, index=False)
+            expected_length = original_length + 1
+            
+            # Criar múltiplos backups
+            backup_file = f"{self.customers_file}.backup"
+            backup_file2 = f"{self.customers_file}.backup2"
+            backup_file3 = f"{self.customers_file}.backup3"
+            
+            if os.path.exists(self.customers_file):
+                shutil.copy2(self.customers_file, backup_file)
+                shutil.copy2(self.customers_file, backup_file2)
+                shutil.copy2(self.customers_file, backup_file3)
+            
+            # Salvar dados com verificação tripla
+            success_count = 0
+            
+            # Tentativa 1: Salvar arquivo principal
+            try:
+                df.to_csv(self.customers_file, index=False)
+                # Verificar imediatamente
+                test_df = pd.read_csv(self.customers_file)
+                if len(test_df) == expected_length and test_df.iloc[-1]['name'] == name:
+                    success_count += 1
+            except:
+                pass
+            
+            # Tentativa 2: Salvar arquivo de segurança 1
+            temp_file1 = f"{self.customers_file}.temp1"
+            try:
+                df.to_csv(temp_file1, index=False)
+                test_df = pd.read_csv(temp_file1)
+                if len(test_df) == expected_length and test_df.iloc[-1]['name'] == name:
+                    success_count += 1
+                    # Se o principal falhou, usar este como principal
+                    if success_count == 1:
+                        shutil.copy2(temp_file1, self.customers_file)
+            except:
+                pass
+            
+            # Tentativa 3: Salvar arquivo de segurança 2
+            temp_file2 = f"{self.customers_file}.temp2"
+            try:
+                df.to_csv(temp_file2, index=False)
+                test_df = pd.read_csv(temp_file2)
+                if len(test_df) == expected_length and test_df.iloc[-1]['name'] == name:
+                    success_count += 1
+                    # Se os anteriores falharam, usar este como principal
+                    if success_count == 1:
+                        shutil.copy2(temp_file2, self.customers_file)
+            except:
+                pass
+            
+            # Verificação final múltipla
+            final_verification = False
+            try:
+                final_df = pd.read_csv(self.customers_file)
+                if len(final_df) == expected_length:
+                    last_customer = final_df.iloc[-1]
+                    if (last_customer['name'] == name and 
+                        last_customer['plan_value'] == plan_value and
+                        last_customer['status'] == status):
+                        final_verification = True
+            except:
+                pass
+            
+            # Limpar arquivos temporários
+            for temp_file in [temp_file1, temp_file2]:
+                try:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                except:
+                    pass
+            
+            # Se falhou completamente, tentar restaurar do melhor backup
+            if not final_verification or success_count == 0:
+                for backup in [backup_file, backup_file2, backup_file3]:
+                    try:
+                        if os.path.exists(backup):
+                            shutil.copy2(backup, self.customers_file)
+                            break
+                    except:
+                        continue
+                return False
+            
             return True
-        except:
+            
+        except Exception as e:
+            # Última tentativa de restauração
+            for backup in [f"{self.customers_file}.backup", 
+                          f"{self.customers_file}.backup2", 
+                          f"{self.customers_file}.backup3"]:
+                try:
+                    if os.path.exists(backup):
+                        shutil.copy2(backup, self.customers_file)
+                        break
+                except:
+                    continue
             return False
     
     def remove_customer(self, index):
+        """Remove cliente com validações"""
         try:
             df = self.load_customers()
-            df = df.drop(index)
+            
+            if df.empty or index < 0 or index >= len(df):
+                return False
+            
+            # Backup antes de remover
+            backup_file = f"{self.customers_file}.backup"
+            shutil.copy2(self.customers_file, backup_file)
+            
+            # Remover cliente
+            df = df.drop(index).reset_index(drop=True)
+            
+            # Salvar
             df.to_csv(self.customers_file, index=False)
+            
             return True
-        except:
+            
+        except Exception as e:
+            # Restaurar backup em caso de erro
+            backup_file = f"{self.customers_file}.backup"
+            if os.path.exists(backup_file):
+                shutil.copy2(backup_file, self.customers_file)
             return False
 
 # Calculadora de métricas simplificada
@@ -731,6 +900,40 @@ if page == "Dashboard":
 elif page == "Inserir Dados":
     st.header("📝 Adicionar Novo Cliente")
     
+    # Sistema de monitoramento em tempo real
+    st.markdown("""
+    <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+        <h5 style="margin-top: 0; color: #155724;">Sistema de Salvamento Ultra-Seguro Ativo</h5>
+        <p style="margin-bottom: 0; color: #155724;">✓ Backup triplo ativo | ✓ Verificação em tempo real | ✓ Recuperação automática</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Mostrar status dos arquivos
+    with st.expander("🔍 Status dos Arquivos (Diagnóstico)", expanded=False):
+        customers_df = data_manager.load_customers()
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Clientes Cadastrados", len(customers_df))
+        
+        with col2:
+            file_exists = os.path.exists(data_manager.customers_file)
+            st.metric("Arquivo Principal", "✅ OK" if file_exists else "❌ Erro")
+        
+        with col3:
+            backup_exists = os.path.exists(f"{data_manager.customers_file}.backup")
+            st.metric("Backup Disponível", "✅ OK" if backup_exists else "⚠️ Nenhum")
+        
+        # Mostrar detalhes técnicos
+        st.write(f"**Arquivo:** {data_manager.customers_file}")
+        st.write(f"**Tamanho:** {os.path.getsize(data_manager.customers_file) if file_exists else 0} bytes")
+        
+        if len(customers_df) > 0:
+            st.write("**Últimos 3 clientes:**")
+            display_recent = customers_df.tail(3)[['name', 'plan_value', 'status']].copy()
+            display_recent['plan_value'] = display_recent['plan_value'].apply(lambda x: f"${x:,.2f}")
+            st.dataframe(display_recent, use_container_width=True, hide_index=True)
+    
     # Formulário mais visual e simples
     st.markdown("""
     <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
@@ -783,18 +986,137 @@ elif page == "Inserir Dados":
         )
         
         if submitted:
-            if customer_name and plan_value > 0:
+            # Validações detalhadas no frontend
+            errors = []
+            
+            if not customer_name or not customer_name.strip():
+                errors.append("❌ Nome do cliente é obrigatório")
+            
+            if plan_value <= 0:
+                errors.append("❌ Valor do plano deve ser maior que zero")
+            
+            if status == "Cancelado" and not cancel_date:
+                errors.append("❌ Data de cancelamento é obrigatória para clientes cancelados")
+            
+            if status == "Cancelado" and cancel_date and cancel_date < signup_date:
+                errors.append("❌ Data de cancelamento não pode ser anterior à data de cadastro")
+            
+            if errors:
+                for error in errors:
+                    st.error(error)
+            else:
+                # Mostrar dados que serão salvos para confirmação
+                with st.expander("📋 Dados que serão salvos:", expanded=True):
+                    st.write(f"**Nome:** {customer_name}")
+                    st.write(f"**Data de Cadastro:** {signup_date}")
+                    st.write(f"**Valor Mensal:** ${plan_value:,.2f} USD")
+                    st.write(f"**Status:** {status}")
+                    if cancel_date:
+                        st.write(f"**Data de Cancelamento:** {cancel_date}")
+                
+                # Processo de salvamento com feedback em tempo real
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Dados antes do salvamento
+                customers_before = data_manager.load_customers()
+                count_before = len(customers_before)
+                
+                status_text.text("🔄 Preparando salvamento...")
+                progress_bar.progress(10)
+                
+                # Tentar salvar com monitoramento
+                status_text.text("💾 Salvando cliente...")
+                progress_bar.progress(30)
+                
                 success = data_manager.add_customer(
                     customer_name, signup_date, plan_value, status, cancel_date
                 )
-                if success:
-                    st.success("Cliente adicionado com sucesso!")
-                    st.balloons()
-                    st.rerun()
+                
+                progress_bar.progress(60)
+                status_text.text("🔍 Verificando integridade dos dados...")
+                
+                # Verificação detalhada pós-salvamento
+                customers_after = data_manager.load_customers()
+                count_after = len(customers_after)
+                
+                progress_bar.progress(80)
+                
+                # Log detalhado do processo
+                log_container = st.container()
+                
+                if success and count_after > count_before:
+                    # Sucesso confirmado
+                    progress_bar.progress(100)
+                    status_text.text("✅ Cliente salvo com sucesso!")
+                    
+                    # Verificar se é realmente o cliente correto
+                    latest_customer = customers_after.iloc[-1]
+                    if (latest_customer['name'] == customer_name and 
+                        abs(latest_customer['plan_value'] - plan_value) < 0.01):
+                        
+                        with log_container:
+                            st.success("🎉 Cliente adicionado com sucesso!")
+                            
+                            # Mostrar dados salvos
+                            st.info(f"""
+                            **Dados Confirmados:**
+                            - Nome: {latest_customer['name']}
+                            - Valor: ${latest_customer['plan_value']:,.2f} USD
+                            - Status: {latest_customer['status']}
+                            - Total de clientes: {count_after}
+                            """)
+                        
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        with log_container:
+                            st.error("⚠️ Dados salvos não conferem. Verificando...")
+                            st.write(f"Esperado: {customer_name}, ${plan_value}")
+                            st.write(f"Salvo: {latest_customer['name']}, ${latest_customer['plan_value']}")
                 else:
-                    st.error("Erro ao adicionar cliente!")
-            else:
-                st.error("Preencha o nome e o valor do plano!")
+                    # Falha no salvamento
+                    progress_bar.progress(100)
+                    status_text.text("❌ Falha no salvamento")
+                    
+                    with log_container:
+                        st.error("❌ Erro ao salvar cliente")
+                        
+                        # Log detalhado para debugging
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.write("**Diagnóstico:**")
+                            st.write(f"- Retorno da função: {success}")
+                            st.write(f"- Clientes antes: {count_before}")
+                            st.write(f"- Clientes depois: {count_after}")
+                            st.write(f"- Arquivo existe: {os.path.exists(data_manager.customers_file)}")
+                        
+                        with col2:
+                            st.write("**Arquivos de Backup:**")
+                            backups = [
+                                f"{data_manager.customers_file}.backup",
+                                f"{data_manager.customers_file}.backup2", 
+                                f"{data_manager.customers_file}.backup3"
+                            ]
+                            for backup in backups:
+                                exists = os.path.exists(backup)
+                                st.write(f"- {backup.split('.')[-1]}: {'✅' if exists else '❌'}")
+                        
+                        # Opção para ver dados raw
+                        if st.checkbox("🔍 Ver dados raw do arquivo"):
+                            try:
+                                with open(data_manager.customers_file, 'r') as f:
+                                    content = f.read()
+                                st.text_area("Conteúdo do arquivo:", content, height=200)
+                            except Exception as e:
+                                st.error(f"Erro ao ler arquivo: {str(e)}")
+                
+                # Limpar progress bar após um tempo
+                import time
+                time.sleep(1)
+                progress_bar.empty()
+                status_text.empty()
 
 elif page == "Gerenciar Dados":
     st.header("🗂️ Gerenciar Dados Existentes")
