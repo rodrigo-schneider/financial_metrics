@@ -160,6 +160,16 @@ Preferred communication style: Simple, everyday language.
 - **Compatibilidade**: Funciona com copy/paste de planilhas e sistemas brasileiros
 - **Validação Robusta**: Impede entrada de dados inválidos com mensagens específicas
 
+### June 23, 2025 - Correção da Funcionalidade de Remoção
+- **Problema Resolvido**: Remoção de clientes não funcionava corretamente
+- **Solução Implementada**: Integração da remoção com sistema de persistência externa
+- **Funcionalidades Corrigidas**:
+  - **Remoção Segura**: Backup automático antes de cada operação de remoção
+  - **Validação de Índices**: Rejeita corretamente índices inválidos ou fora do range
+  - **Persistência Garantida**: Remoções salvas em múltiplas camadas permanentes
+  - **Verificação de Integridade**: Confirma sucesso da operação antes de finalizar
+- **Resultado**: Sistema de gerenciamento completo com adição e remoção funcionais
+
 ## Changelog
 
 Changelog:

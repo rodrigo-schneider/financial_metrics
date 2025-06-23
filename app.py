@@ -263,26 +263,40 @@ class DataManager:
             return False
     
     def remove_customer(self, index):
-        """Remove cliente com validações"""
+        """Remove cliente com validações e persistência externa"""
         try:
             df = self.load_customers()
             
             if df.empty or index < 0 or index >= len(df):
+                print(f"Erro: Índice inválido {index} para DataFrame com {len(df)} registros")
                 return False
             
             # Backup antes de remover
+            self._create_permanent_backups(df)
             backup_file = f"{self.customers_file}.backup"
-            shutil.copy2(self.customers_file, backup_file)
+            if os.path.exists(self.customers_file):
+                shutil.copy2(self.customers_file, backup_file)
             
-            # Remover cliente
-            df = df.drop(index).reset_index(drop=True)
+            # Remover cliente pelo índice
+            df_updated = df.drop(df.index[index]).reset_index(drop=True)
             
-            # Salvar
-            df.to_csv(self.customers_file, index=False)
+            # Salvar no sistema de persistência externa
+            external_save_success = self.persistent_storage.save_data(df_updated)
             
-            return True
+            # Salvar localmente
+            df_updated.to_csv(self.customers_file, index=False)
+            
+            # Verificar se a remoção foi bem-sucedida
+            df_verify = self.load_customers()
+            if len(df_verify) == len(df) - 1:
+                print(f"✅ Cliente removido com sucesso - Sistema externo: {'OK' if external_save_success else 'FALHOU'}")
+                return True
+            else:
+                print(f"❌ Falha na verificação: esperado {len(df) - 1}, obtido {len(df_verify)}")
+                return False
             
         except Exception as e:
+            print(f"Erro ao remover cliente: {e}")
             # Restaurar backup em caso de erro
             backup_file = f"{self.customers_file}.backup"
             if os.path.exists(backup_file):

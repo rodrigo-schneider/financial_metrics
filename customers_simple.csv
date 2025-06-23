@@ -1,4 +1,3 @@
 name,signup_date,plan_value,status,cancel_date
-Cliente Teste Persistência,2024-01-15,2500.0,Ativo,
-Cliente Teste Multi-User,2024-02-20,1800.0,Ativo,
-Aarna AI,2025-03-29,4000.0,Ativo,
+Cliente Teste Multi-User,2024-02-20,1800,Ativo,
+Aarna AI,2025-03-29,4000,Ativo,
