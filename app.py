@@ -56,12 +56,8 @@ class DataManager:
             if df.empty:
                 return pd.DataFrame(columns=['name', 'signup_date', 'plan_value', 'status', 'cancel_date'])
             
-            # Converter datas com tratamento de erro
-            try:
-                df['signup_date'] = pd.to_datetime(df['signup_date'], errors='coerce')
-                df['cancel_date'] = pd.to_datetime(df['cancel_date'], errors='coerce')
-            except:
-                pass
+            # Manter datas como string para evitar conversão dupla
+            # As datas serão convertidas apenas quando necessário para cálculos
             
             # Garantir tipos corretos
             try:
@@ -1193,22 +1189,12 @@ elif page == "Gerenciar Dados":
     if not customers_df.empty:
         display_df = customers_df.copy()
         
-        # Formatar datas para exibição com tratamento robusto
+        # Formatar datas de forma simples e direta
         if 'signup_date' in display_df.columns:
-            # Converter para datetime primeiro
-            display_df['signup_date'] = pd.to_datetime(display_df['signup_date'], errors='coerce')
-            # Aplicar formatação apenas aos valores válidos
-            display_df['signup_date'] = display_df['signup_date'].apply(
-                lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else 'Data inválida'
-            )
+            display_df['signup_date'] = display_df['signup_date'].fillna('Data inválida')
         
         if 'cancel_date' in display_df.columns:
-            # Converter para datetime primeiro
-            display_df['cancel_date'] = pd.to_datetime(display_df['cancel_date'], errors='coerce')
-            # Aplicar formatação apenas aos valores válidos
-            display_df['cancel_date'] = display_df['cancel_date'].apply(
-                lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else 'N/A'
-            )
+            display_df['cancel_date'] = display_df['cancel_date'].fillna('N/A')
         
         # Formatar valores monetários
         if 'plan_value' in display_df.columns:

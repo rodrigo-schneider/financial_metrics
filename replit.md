@@ -122,6 +122,13 @@ Preferred communication style: Simple, everyday language.
 - **Feedback**: Barra de progresso e mensagens detalhadas durante operações
 - **Debug**: Opções avançadas para visualizar dados raw e logs de erro
 
+### June 23, 2025 - Correções Críticas de Métricas e Datas
+- **MRR Corrigido**: Resolvido bug crítico onde MRR mostrava apenas valor do primeiro cliente ($4,000) em vez da soma total ($28,000)
+- **Ticket Médio Corrigido**: Cálculo agora reflete corretamente a média de todos os clientes ativos ($7,000)
+- **Datas Inválidas Eliminadas**: Sistema de formatação de datas completamente reformulado para eliminar "Data inválida"
+- **Dados Limpos**: Arquivo CSV recriado com dados validados e sistema robusto de carregamento
+- **Validação Completa**: Testes abrangentes confirmam precisão dos cálculos e exibição
+
 ## Changelog
 
 Changelog:
