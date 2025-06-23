@@ -1003,78 +1003,81 @@ elif page == "Inserir Dados":
     </div>
     """, unsafe_allow_html=True)
     
-    with st.form("customer_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            customer_name = st.text_input(
-                "Nome Completo", 
-                placeholder="Ex: João Silva",
-                help="Digite o nome completo do cliente"
-            )
-            signup_date = st.date_input(
-                "Data de Cadastro", 
-                value=date.today(),
-                help="Quando o cliente se cadastrou"
-            )
-        
-        with col2:
-            plan_value = st.number_input(
-                "Valor do Plano Mensal (USD)", 
-                min_value=0.0, 
-                step=1.0,
-                help="Quanto o cliente paga por mês em dólares"
-            )
-            status = st.selectbox(
-                "Status do Cliente", 
-                ["Ativo", "Cancelado"],
-                help="Situação atual do cliente"
-            )
-        
-        # Só mostrar data de cancelamento se status for "Cancelado"
-        cancel_date = None
-        if status == "Cancelado":
-            cancel_date = st.date_input(
-                "Data de Cancelamento", 
-                value=date.today(),
-                help="Quando o cliente cancelou"
-            )
-        
-        # Botão mais visual
-        submitted = st.form_submit_button(
-            "➕ Adicionar Cliente",
-            use_container_width=True,
-            type="primary"
+    # Usar formulário sem auto-submit para permitir interatividade
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        customer_name = st.text_input(
+            "Nome Completo", 
+            placeholder="Ex: João Silva",
+            help="Digite o nome completo do cliente",
+            key="customer_name"
         )
+        signup_date = st.date_input(
+            "Data de Cadastro", 
+            value=date.today(),
+            help="Quando o cliente se cadastrou",
+            key="signup_date"
+        )
+    
+    with col2:
+        plan_value = st.number_input(
+            "Valor do Plano Mensal (USD)", 
+            min_value=0.0, 
+            step=1.0,
+            help="Quanto o cliente paga por mês em dólares",
+            key="plan_value"
+        )
+        status = st.selectbox(
+            "Status do Cliente", 
+            ["Ativo", "Cancelado"],
+            help="Situação atual do cliente",
+            key="status"
+        )
+    
+    # Mostrar data de cancelamento automaticamente quando status for "Cancelado"
+    cancel_date = None
+    if status == "Cancelado":
+        cancel_date = st.date_input(
+            "Data de Cancelamento", 
+            value=date.today(),
+            help="Quando o cliente cancelou",
+            key="cancel_date"
+        )
+    
+    # Botão de submissão
+    if st.button(
+        "➕ Adicionar Cliente",
+        use_container_width=True,
+        type="primary"
+    ):
+        # Validações detalhadas no frontend
+        errors = []
         
-        if submitted:
-            # Validações detalhadas no frontend
-            errors = []
-            
-            if not customer_name or not customer_name.strip():
-                errors.append("❌ Nome do cliente é obrigatório")
-            
-            if plan_value <= 0:
-                errors.append("❌ Valor do plano deve ser maior que zero")
-            
-            if status == "Cancelado" and not cancel_date:
-                errors.append("❌ Data de cancelamento é obrigatória para clientes cancelados")
-            
-            if status == "Cancelado" and cancel_date and cancel_date < signup_date:
-                errors.append("❌ Data de cancelamento não pode ser anterior à data de cadastro")
-            
-            if errors:
-                for error in errors:
-                    st.error(error)
-            else:
-                # Mostrar dados que serão salvos para confirmação
-                with st.expander("📋 Dados que serão salvos:", expanded=True):
-                    st.write(f"**Nome:** {customer_name}")
-                    st.write(f"**Data de Cadastro:** {signup_date}")
-                    st.write(f"**Valor Mensal:** ${plan_value:,.2f} USD")
-                    st.write(f"**Status:** {status}")
-                    if cancel_date:
-                        st.write(f"**Data de Cancelamento:** {cancel_date}")
+        if not customer_name or not customer_name.strip():
+            errors.append("❌ Nome do cliente é obrigatório")
+        
+        if plan_value <= 0:
+            errors.append("❌ Valor do plano deve ser maior que zero")
+        
+        if status == "Cancelado" and not cancel_date:
+            errors.append("❌ Data de cancelamento é obrigatória para clientes cancelados")
+        
+        if status == "Cancelado" and cancel_date and cancel_date < signup_date:
+            errors.append("❌ Data de cancelamento não pode ser anterior à data de cadastro")
+        
+        if errors:
+            for error in errors:
+                st.error(error)
+        else:
+            # Mostrar dados que serão salvos para confirmação
+            with st.expander("📋 Dados que serão salvos:", expanded=True):
+                st.write(f"**Nome:** {customer_name}")
+                st.write(f"**Data de Cadastro:** {signup_date}")
+                st.write(f"**Valor Mensal:** ${plan_value:,.2f} USD")
+                st.write(f"**Status:** {status}")
+                if cancel_date:
+                    st.write(f"**Data de Cancelamento:** {cancel_date}")
                 
                 # Processo de salvamento com feedback em tempo real
                 progress_bar = st.progress(0)
