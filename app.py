@@ -158,10 +158,6 @@ class MetricsCalculator:
         last_day = calendar.monthrange(month_date.year, month_date.month)[1]
         return month_date.replace(day=last_day, hour=23, minute=59, second=59)
 
-# Função para converter Real para Dólar
-def convert_to_usd(value_brl):
-    return value_brl / 5.0  # Taxa: R$ 5,00 = $1,00
-
 # Funções de visualização simplificadas e mais visuais
 def create_visualizations(monthly_metrics):
     if monthly_metrics.empty:
@@ -169,15 +165,9 @@ def create_visualizations(monthly_metrics):
     
     colors = {'primary': '#3b82f6', 'success': '#10b981', 'warning': '#f59e0b', 'danger': '#ef4444'}
     
-    # Converter valores para USD
-    monthly_metrics_usd = monthly_metrics.copy()
-    monthly_metrics_usd['mrr_usd'] = monthly_metrics_usd['mrr'].apply(convert_to_usd)
-    monthly_metrics_usd['ticket_medio_usd'] = monthly_metrics_usd['ticket_medio'].apply(convert_to_usd)
-    monthly_metrics_usd['churn_mrr_usd'] = monthly_metrics_usd['churn_mrr'].apply(convert_to_usd)
-    
     # 1. Gráfico de novos clientes por mês
     fig_customers = px.bar(
-        monthly_metrics_usd, x='mes_ano', y='novos_clientes',
+        monthly_metrics, x='mes_ano', y='novos_clientes',
         title='👥 NOVOS CLIENTES POR MÊS',
         color_discrete_sequence=[colors['primary']],
         text='novos_clientes'
@@ -199,13 +189,13 @@ def create_visualizations(monthly_metrics):
         font=dict(size=12, family="Arial Black")
     )
     
-    # 2. Gráfico de MRR em USD
+    # 2. Gráfico de MRR em USD (sem conversão)
     fig_mrr = px.line(
-        monthly_metrics_usd, x='mes_ano', y='mrr_usd',
+        monthly_metrics, x='mes_ano', y='mrr',
         title='💰 FATURAMENTO MENSAL (MRR)',
         markers=True, 
         color_discrete_sequence=[colors['success']],
-        text='mrr_usd'
+        text='mrr'
     )
     fig_mrr.update_traces(
         line=dict(width=6),
@@ -226,12 +216,12 @@ def create_visualizations(monthly_metrics):
         font=dict(size=12, family="Arial Black")
     )
     
-    # 3. Gráfico de ticket médio em USD
+    # 3. Gráfico de ticket médio em USD (sem conversão)
     fig_ticket = px.bar(
-        monthly_metrics_usd, x='mes_ano', y='ticket_medio_usd',
+        monthly_metrics, x='mes_ano', y='ticket_medio',
         title='🎯 TICKET MÉDIO POR MÊS',
         color_discrete_sequence=[colors['warning']],
-        text='ticket_medio_usd'
+        text='ticket_medio'
     )
     fig_ticket.update_traces(
         texttemplate='<b>$%{text:,.0f}</b>',
@@ -250,21 +240,25 @@ def create_visualizations(monthly_metrics):
         font=dict(size=12, family="Arial Black")
     )
     
-    # 4. Gráfico de churn combinado (clientes + MRR)
+    # 4. Gráfico de churn - quantidade e percentual
+    # Calcular taxa de churn percentual
+    monthly_metrics['churn_rate'] = (monthly_metrics['churn_clientes'] / monthly_metrics['novos_clientes'].cumsum()) * 100
+    monthly_metrics['churn_rate'] = monthly_metrics['churn_rate'].fillna(0)
+    
     from plotly.subplots import make_subplots
     fig_churn = make_subplots(
         specs=[[{"secondary_y": True}]],
-        subplot_titles=['📉 CHURN MENSAL (CLIENTES + RECEITA)']
+        subplot_titles=['📉 CHURN MENSAL (QUANTIDADE + PERCENTUAL)']
     )
     
-    # Churn de clientes
+    # Churn de clientes (quantidade)
     fig_churn.add_trace(
         go.Bar(
-            x=monthly_metrics_usd['mes_ano'],
-            y=monthly_metrics_usd['churn_clientes'],
-            name='Clientes Cancelados',
+            x=monthly_metrics['mes_ano'],
+            y=monthly_metrics['churn_clientes'],
+            name='Churn Quantidade',
             marker_color=colors['danger'],
-            text=monthly_metrics_usd['churn_clientes'],
+            text=monthly_metrics['churn_clientes'],
             texttemplate='<b>%{text}</b>',
             textposition='outside',
             textfont_size=14
@@ -272,17 +266,17 @@ def create_visualizations(monthly_metrics):
         secondary_y=False
     )
     
-    # Churn MRR em USD
+    # Churn percentual
     fig_churn.add_trace(
         go.Scatter(
-            x=monthly_metrics_usd['mes_ano'],
-            y=monthly_metrics_usd['churn_mrr_usd'],
+            x=monthly_metrics['mes_ano'],
+            y=monthly_metrics['churn_rate'],
             mode='lines+markers+text',
-            name='MRR Perdido (USD)',
+            name='Churn %',
             line=dict(color='#ff6b6b', width=4),
             marker=dict(size=10),
-            text=monthly_metrics_usd['churn_mrr_usd'],
-            texttemplate='<b>$%{text:,.0f}</b>',
+            text=monthly_metrics['churn_rate'],
+            texttemplate='<b>%{text:.1f}%</b>',
             textposition='top center',
             textfont_size=14
         ),
@@ -291,7 +285,7 @@ def create_visualizations(monthly_metrics):
     
     fig_churn.update_xaxes(title_text="MÊS")
     fig_churn.update_yaxes(title_text="CLIENTES CANCELADOS", secondary_y=False)
-    fig_churn.update_yaxes(title_text="MRR PERDIDO (USD)", secondary_y=True)
+    fig_churn.update_yaxes(title_text="TAXA DE CHURN (%)", secondary_y=True)
     
     fig_churn.update_layout(
         height=400,
@@ -353,13 +347,13 @@ if page == "Dashboard":
             latest_month = monthly_metrics['mes_ano'].max()
             latest_data = monthly_metrics[monthly_metrics['mes_ano'] == latest_month].iloc[0]
             
-            # Calcular totais gerais em USD
+            # Calcular totais gerais (valores diretos em USD)
             total_customers = len(customers_df)
             active_customers = len(customers_df[customers_df['status'] == 'Ativo'])
-            total_mrr_usd = convert_to_usd(latest_data['mrr'])
-            avg_ticket_usd = convert_to_usd(latest_data['ticket_medio'])
+            total_mrr_usd = latest_data['mrr']
+            avg_ticket_usd = latest_data['ticket_medio']
             churn_count = latest_data['churn_clientes']
-            churn_mrr_usd = convert_to_usd(latest_data['churn_mrr'])
+            churn_mrr_usd = latest_data['churn_mrr']
             
             # Cards grandes e visuais com valores em USD
             col1, col2, col3, col4 = st.columns(4)
@@ -462,15 +456,16 @@ if page == "Dashboard":
             # Tabela detalhada com todos os dados solicitados em USD
             st.subheader("📋 Dados Mensais Detalhados")
             
-            # Criar tabela com todos os dados convertidos para USD
+            # Criar tabela com todos os dados em USD (sem conversão)
             detailed_data = monthly_metrics.copy()
-            detailed_data['MRR (USD)'] = detailed_data['mrr'].apply(lambda x: f"${convert_to_usd(x):,.0f}")
-            detailed_data['Ticket Médio (USD)'] = detailed_data['ticket_medio'].apply(lambda x: f"${convert_to_usd(x):,.0f}")
-            detailed_data['Churn MRR (USD)'] = detailed_data['churn_mrr'].apply(lambda x: f"${convert_to_usd(x):,.0f}")
+            detailed_data['MRR (USD)'] = detailed_data['mrr'].apply(lambda x: f"${x:,.0f}")
+            detailed_data['Ticket Médio (USD)'] = detailed_data['ticket_medio'].apply(lambda x: f"${x:,.0f}")
+            detailed_data['Churn MRR (USD)'] = detailed_data['churn_mrr'].apply(lambda x: f"${x:,.0f}")
+            detailed_data['Churn Rate (%)'] = (detailed_data['churn_clientes'] / detailed_data['novos_clientes'].cumsum() * 100).fillna(0).apply(lambda x: f"{x:.1f}%")
             
             # Selecionar e renomear colunas para exibição
-            table_data = detailed_data[['mes_ano', 'novos_clientes', 'MRR (USD)', 'Ticket Médio (USD)', 'churn_clientes', 'Churn MRR (USD)']].copy()
-            table_data.columns = ['MÊS', 'NOVOS CLIENTES', 'FATURAMENTO MRR', 'TICKET MÉDIO', 'CHURN CLIENTES', 'CHURN MRR']
+            table_data = detailed_data[['mes_ano', 'novos_clientes', 'MRR (USD)', 'Ticket Médio (USD)', 'churn_clientes', 'Churn MRR (USD)', 'Churn Rate (%)']].copy()
+            table_data.columns = ['MÊS', 'NOVOS CLIENTES', 'FATURAMENTO MRR', 'TICKET MÉDIO', 'CHURN QTD', 'CHURN MRR', 'CHURN %']
             
             # Aplicar estilo customizado à tabela
             styled_table = table_data.style.set_properties(**{
@@ -516,10 +511,10 @@ elif page == "Inserir Dados":
         
         with col2:
             plan_value = st.number_input(
-                "Valor do Plano Mensal (R$)", 
+                "Valor do Plano Mensal (USD)", 
                 min_value=0.0, 
                 step=1.0,
-                help="Quanto o cliente paga por mês (será convertido para USD no dashboard)"
+                help="Quanto o cliente paga por mês em dólares"
             )
             status = st.selectbox(
                 "Status do Cliente", 
