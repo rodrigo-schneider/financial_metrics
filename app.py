@@ -158,6 +158,10 @@ class MetricsCalculator:
         last_day = calendar.monthrange(month_date.year, month_date.month)[1]
         return month_date.replace(day=last_day, hour=23, minute=59, second=59)
 
+# Função para converter Real para Dólar
+def convert_to_usd(value_brl):
+    return value_brl / 5.0  # Taxa: R$ 5,00 = $1,00
+
 # Funções de visualização simplificadas e mais visuais
 def create_visualizations(monthly_metrics):
     if monthly_metrics.empty:
@@ -165,89 +169,144 @@ def create_visualizations(monthly_metrics):
     
     colors = {'primary': '#3b82f6', 'success': '#10b981', 'warning': '#f59e0b', 'danger': '#ef4444'}
     
-    # Gráfico de novos clientes - mais simples e visual
+    # Converter valores para USD
+    monthly_metrics_usd = monthly_metrics.copy()
+    monthly_metrics_usd['mrr_usd'] = monthly_metrics_usd['mrr'].apply(convert_to_usd)
+    monthly_metrics_usd['ticket_medio_usd'] = monthly_metrics_usd['ticket_medio'].apply(convert_to_usd)
+    monthly_metrics_usd['churn_mrr_usd'] = monthly_metrics_usd['churn_mrr'].apply(convert_to_usd)
+    
+    # 1. Gráfico de novos clientes por mês
     fig_customers = px.bar(
-        monthly_metrics, x='mes_ano', y='novos_clientes',
-        title='👥 Novos Clientes',
+        monthly_metrics_usd, x='mes_ano', y='novos_clientes',
+        title='👥 NOVOS CLIENTES POR MÊS',
         color_discrete_sequence=[colors['primary']],
         text='novos_clientes'
     )
-    fig_customers.update_traces(texttemplate='%{text}', textposition='outside')
+    fig_customers.update_traces(
+        texttemplate='<b>%{text}</b>',
+        textposition='outside',
+        textfont_size=14
+    )
     fig_customers.update_layout(
         showlegend=False, 
-        height=350,
-        xaxis_title="",
-        yaxis_title="Clientes",
-        title_font_size=18,
+        height=400,
+        xaxis_title="MÊS",
+        yaxis_title="NOVOS CLIENTES",
+        title_font_size=20,
         title_x=0.5,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        font=dict(size=12, family="Arial Black")
     )
     
-    # Gráfico de MRR - linha mais grossa e visual
+    # 2. Gráfico de MRR em USD
     fig_mrr = px.line(
-        monthly_metrics, x='mes_ano', y='mrr',
-        title='💰 Receita Mensal (MRR)',
+        monthly_metrics_usd, x='mes_ano', y='mrr_usd',
+        title='💰 FATURAMENTO MENSAL (MRR)',
         markers=True, 
         color_discrete_sequence=[colors['success']],
-        text='mrr'
+        text='mrr_usd'
     )
     fig_mrr.update_traces(
-        line=dict(width=4),
-        marker=dict(size=10),
-        texttemplate='R$ %{text:,.0f}',
-        textposition='top center'
+        line=dict(width=6),
+        marker=dict(size=12),
+        texttemplate='<b>$%{text:,.0f}</b>',
+        textposition='top center',
+        textfont_size=14
     )
     fig_mrr.update_layout(
         showlegend=False, 
-        height=350,
-        xaxis_title="",
-        yaxis_title="Receita (R$)",
-        title_font_size=18,
+        height=400,
+        xaxis_title="MÊS",
+        yaxis_title="RECEITA (USD)",
+        title_font_size=20,
         title_x=0.5,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        font=dict(size=12, family="Arial Black")
     )
     
-    # Gráfico de ticket médio - área mais suave
+    # 3. Gráfico de ticket médio em USD
     fig_ticket = px.bar(
-        monthly_metrics, x='mes_ano', y='ticket_medio',
-        title='🎯 Valor Médio por Cliente',
+        monthly_metrics_usd, x='mes_ano', y='ticket_medio_usd',
+        title='🎯 TICKET MÉDIO POR MÊS',
         color_discrete_sequence=[colors['warning']],
-        text='ticket_medio'
+        text='ticket_medio_usd'
     )
     fig_ticket.update_traces(
-        texttemplate='R$ %{text:,.0f}',
-        textposition='outside'
+        texttemplate='<b>$%{text:,.0f}</b>',
+        textposition='outside',
+        textfont_size=14
     )
     fig_ticket.update_layout(
         showlegend=False, 
-        height=350,
-        xaxis_title="",
-        yaxis_title="Valor (R$)",
-        title_font_size=18,
+        height=400,
+        xaxis_title="MÊS",
+        yaxis_title="TICKET MÉDIO (USD)",
+        title_font_size=20,
         title_x=0.5,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        font=dict(size=12, family="Arial Black")
     )
     
-    # Gráfico de churn - simples com barras
-    fig_churn = px.bar(
-        monthly_metrics, x='mes_ano', y='churn_clientes',
-        title='📉 Clientes que Cancelaram',
-        color_discrete_sequence=[colors['danger']],
-        text='churn_clientes'
+    # 4. Gráfico de churn combinado (clientes + MRR)
+    from plotly.subplots import make_subplots
+    fig_churn = make_subplots(
+        specs=[[{"secondary_y": True}]],
+        subplot_titles=['📉 CHURN MENSAL (CLIENTES + RECEITA)']
     )
-    fig_churn.update_traces(texttemplate='%{text}', textposition='outside')
+    
+    # Churn de clientes
+    fig_churn.add_trace(
+        go.Bar(
+            x=monthly_metrics_usd['mes_ano'],
+            y=monthly_metrics_usd['churn_clientes'],
+            name='Clientes Cancelados',
+            marker_color=colors['danger'],
+            text=monthly_metrics_usd['churn_clientes'],
+            texttemplate='<b>%{text}</b>',
+            textposition='outside',
+            textfont_size=14
+        ),
+        secondary_y=False
+    )
+    
+    # Churn MRR em USD
+    fig_churn.add_trace(
+        go.Scatter(
+            x=monthly_metrics_usd['mes_ano'],
+            y=monthly_metrics_usd['churn_mrr_usd'],
+            mode='lines+markers+text',
+            name='MRR Perdido (USD)',
+            line=dict(color='#ff6b6b', width=4),
+            marker=dict(size=10),
+            text=monthly_metrics_usd['churn_mrr_usd'],
+            texttemplate='<b>$%{text:,.0f}</b>',
+            textposition='top center',
+            textfont_size=14
+        ),
+        secondary_y=True
+    )
+    
+    fig_churn.update_xaxes(title_text="MÊS")
+    fig_churn.update_yaxes(title_text="CLIENTES CANCELADOS", secondary_y=False)
+    fig_churn.update_yaxes(title_text="MRR PERDIDO (USD)", secondary_y=True)
+    
     fig_churn.update_layout(
-        showlegend=False, 
-        height=350,
-        xaxis_title="",
-        yaxis_title="Cancelamentos",
-        title_font_size=18,
+        height=400,
+        title_font_size=20,
         title_x=0.5,
         plot_bgcolor='white',
-        paper_bgcolor='white'
+        paper_bgcolor='white',
+        font=dict(size=12, family="Arial Black"),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
     
     return {
@@ -266,6 +325,7 @@ data_manager = init_data_manager()
 
 # Interface principal
 st.title("📊 Dashboard de Métricas de Clientes")
+st.markdown("💵 **Valores exibidos em USD** | Taxa: R$ 5,00 = $1,00")
 st.markdown("---")
 
 st.sidebar.title("Navegação")
@@ -293,48 +353,92 @@ if page == "Dashboard":
             latest_month = monthly_metrics['mes_ano'].max()
             latest_data = monthly_metrics[monthly_metrics['mes_ano'] == latest_month].iloc[0]
             
-            # Calcular totais gerais
+            # Calcular totais gerais em USD
             total_customers = len(customers_df)
             active_customers = len(customers_df[customers_df['status'] == 'Ativo'])
-            total_mrr = latest_data['mrr']
-            avg_ticket = latest_data['ticket_medio']
+            total_mrr_usd = convert_to_usd(latest_data['mrr'])
+            avg_ticket_usd = convert_to_usd(latest_data['ticket_medio'])
+            churn_count = latest_data['churn_clientes']
+            churn_mrr_usd = convert_to_usd(latest_data['churn_mrr'])
             
-            # Cards grandes e visuais
+            # Cards grandes e visuais com valores em USD
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
-                    <h3 style="margin: 0; font-size: 2.5em; font-weight: bold;">{total_customers}</h3>
-                    <p style="margin: 5px 0 0 0; font-size: 1.1em;">Total de Clientes</p>
+                           padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                    <h2 style="margin: 0; font-size: 3.5em; font-weight: 900;">{total_customers}</h2>
+                    <p style="margin: 10px 0 0 0; font-size: 1.2em; font-weight: bold;">TOTAL CLIENTES</p>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col2:
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
-                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
-                    <h3 style="margin: 0; font-size: 2.5em; font-weight: bold;">{active_customers}</h3>
-                    <p style="margin: 5px 0 0 0; font-size: 1.1em;">Clientes Ativos</p>
+                           padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                    <h2 style="margin: 0; font-size: 3.5em; font-weight: 900;">{active_customers}</h2>
+                    <p style="margin: 10px 0 0 0; font-size: 1.2em; font-weight: bold;">CLIENTES ATIVOS</p>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col3:
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
-                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
-                    <h3 style="margin: 0; font-size: 2.5em; font-weight: bold;">R$ {total_mrr:,.0f}</h3>
-                    <p style="margin: 5px 0 0 0; font-size: 1.1em;">Receita Mensal</p>
+                           padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                    <h2 style="margin: 0; font-size: 3.5em; font-weight: 900;">${total_mrr_usd:,.0f}</h2>
+                    <p style="margin: 10px 0 0 0; font-size: 1.2em; font-weight: bold;">MRR ATUAL (USD)</p>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col4:
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); 
+                           padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                    <h2 style="margin: 0; font-size: 3.5em; font-weight: 900;">${avg_ticket_usd:,.0f}</h2>
+                    <p style="margin: 10px 0 0 0; font-size: 1.2em; font-weight: bold;">TICKET MÉDIO (USD)</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Linha adicional com métricas de churn
+            st.markdown("### 📊 Métricas de Churn do Último Mês")
+            col5, col6, col7, col8 = st.columns(4)
+            
+            with col5:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); 
                            padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
-                    <h3 style="margin: 0; font-size: 2.5em; font-weight: bold;">R$ {avg_ticket:,.0f}</h3>
-                    <p style="margin: 5px 0 0 0; font-size: 1.1em;">Ticket Médio</p>
+                    <h3 style="margin: 0; font-size: 2.8em; font-weight: bold;">{churn_count}</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 1em;">CANCELAMENTOS</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col6:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%); 
+                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 2.8em; font-weight: bold;">${churn_mrr_usd:,.0f}</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 1em;">MRR PERDIDO (USD)</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col7:
+                churn_rate = (churn_count / max(active_customers, 1)) * 100 if active_customers > 0 else 0
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%); 
+                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 2.8em; font-weight: bold;">{churn_rate:.1f}%</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 1em;">TAXA DE CHURN</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col8:
+                growth_rate = latest_data['novos_clientes'] - churn_count
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #00b894 0%, #00a085 100%); 
+                           padding: 20px; border-radius: 10px; text-align: center; color: white; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 2.8em; font-weight: bold;">+{growth_rate}</h3>
+                    <p style="margin: 5px 0 0 0; font-size: 1em;">CRESCIMENTO LÍQUIDO</p>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -355,19 +459,33 @@ if page == "Dashboard":
                 st.plotly_chart(visualizations['mrr'], use_container_width=True)
                 st.plotly_chart(visualizations['churn'], use_container_width=True)
             
-            # Tabela simplificada e mais visual
-            st.subheader("📋 Resumo por Mês")
+            # Tabela detalhada com todos os dados solicitados em USD
+            st.subheader("📋 Dados Mensais Detalhados")
             
-            # Formatar tabela de forma mais simples
-            display_data = monthly_metrics[['mes_ano', 'novos_clientes', 'mrr', 'ticket_medio', 'churn_clientes']].copy()
-            display_data.columns = ['Mês', 'Novos Clientes', 'Receita (R$)', 'Ticket Médio (R$)', 'Cancelamentos']
+            # Criar tabela com todos os dados convertidos para USD
+            detailed_data = monthly_metrics.copy()
+            detailed_data['MRR (USD)'] = detailed_data['mrr'].apply(lambda x: f"${convert_to_usd(x):,.0f}")
+            detailed_data['Ticket Médio (USD)'] = detailed_data['ticket_medio'].apply(lambda x: f"${convert_to_usd(x):,.0f}")
+            detailed_data['Churn MRR (USD)'] = detailed_data['churn_mrr'].apply(lambda x: f"${convert_to_usd(x):,.0f}")
             
-            # Formatar valores monetários
-            for i in range(len(display_data)):
-                display_data.iloc[i, 2] = f"R$ {display_data.iloc[i, 2]:,.0f}"  # Receita
-                display_data.iloc[i, 3] = f"R$ {display_data.iloc[i, 3]:,.0f}"  # Ticket Médio
+            # Selecionar e renomear colunas para exibição
+            table_data = detailed_data[['mes_ano', 'novos_clientes', 'MRR (USD)', 'Ticket Médio (USD)', 'churn_clientes', 'Churn MRR (USD)']].copy()
+            table_data.columns = ['MÊS', 'NOVOS CLIENTES', 'FATURAMENTO MRR', 'TICKET MÉDIO', 'CHURN CLIENTES', 'CHURN MRR']
             
-            st.dataframe(display_data, use_container_width=True, hide_index=True)
+            # Aplicar estilo customizado à tabela
+            styled_table = table_data.style.set_properties(**{
+                'background-color': '#f8f9fa',
+                'color': '#2c3e50',
+                'font-weight': 'bold',
+                'font-size': '14px',
+                'text-align': 'center'
+            }).set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#3498db'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '16px'), ('text-align', 'center')]},
+                {'selector': 'td', 'props': [('padding', '12px')]},
+                {'selector': 'tr:hover', 'props': [('background-color', '#e8f4fd')]}
+            ])
+            
+            st.dataframe(styled_table, use_container_width=True, hide_index=True)
         else:
             st.info("📊 Aguardando dados para calcular métricas mensais.")
 
@@ -401,7 +519,7 @@ elif page == "Inserir Dados":
                 "Valor do Plano Mensal (R$)", 
                 min_value=0.0, 
                 step=1.0,
-                help="Quanto o cliente paga por mês"
+                help="Quanto o cliente paga por mês (será convertido para USD no dashboard)"
             )
             status = st.selectbox(
                 "Status do Cliente", 
