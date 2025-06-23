@@ -561,120 +561,141 @@ if page == "Dashboard":
             
             visualizations = create_visualizations(monthly_metrics)
             
-            # Filtrar apenas dados com valores > 0 para mostrar na visualização
-            data_with_values = monthly_metrics[
-                (monthly_metrics['novos_clientes'] > 0) | 
-                (monthly_metrics['mrr'] > 0) | 
-                (monthly_metrics['ticket_medio'] > 0) |
-                (monthly_metrics['churn_clientes'] > 0)
-            ].copy()
+            # Gráficos limpos em grid 2x2
+            col1, col2 = st.columns(2)
             
-            if len(data_with_values) > 0:
-                # Criar visualização em cards grandes por mês
-                for _, row in data_with_values.iterrows():
-                    with st.container():
-                        st.markdown(f"### 📅 {row['mes_ano']}")
-                        
-                        col1, col2, col3, col4 = st.columns(4)
-                        
-                        with col1:
-                            st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); 
-                                       padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px;">
-                                <h2 style="margin: 0; font-size: 3em; font-weight: bold;">{int(row['novos_clientes'])}</h2>
-                                <p style="margin: 5px 0 0 0; font-size: 1.1em; font-weight: bold;">NOVOS CLIENTES</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col2:
-                            st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #10b981 0%, #047857 100%); 
-                                       padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px;">
-                                <h2 style="margin: 0; font-size: 3em; font-weight: bold;">${int(row['mrr']):,}</h2>
-                                <p style="margin: 5px 0 0 0; font-size: 1.1em; font-weight: bold;">MRR (USD)</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col3:
-                            st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
-                                       padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px;">
-                                <h2 style="margin: 0; font-size: 3em; font-weight: bold;">${int(row['ticket_medio']):,}</h2>
-                                <p style="margin: 5px 0 0 0; font-size: 1.1em; font-weight: bold;">TICKET MÉDIO</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col4:
-                            churn_rate = (row['churn_clientes'] / monthly_metrics['novos_clientes'].cumsum().max() * 100) if monthly_metrics['novos_clientes'].cumsum().max() > 0 else 0
-                            st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); 
-                                       padding: 25px; border-radius: 15px; text-align: center; color: white; margin-bottom: 15px;">
-                                <h2 style="margin: 0; font-size: 2.2em; font-weight: bold;">{int(row['churn_clientes'])}</h2>
-                                <p style="margin: 2px 0 0 0; font-size: 1.4em; font-weight: bold;">({churn_rate:.1f}%)</p>
-                                <p style="margin: 2px 0 0 0; font-size: 1.1em; font-weight: bold;">CHURN</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        st.markdown("---")
+            with col1:
+                # Gráfico 1: Novos Clientes (mais limpo)
+                fig_customers = go.Figure()
                 
-                # Gráfico resumido simples
-                st.subheader("📊 Gráfico Resumo")
+                # Filtrar dados com valor > 0 para não mostrar barras zeradas
+                customers_data = monthly_metrics[monthly_metrics['novos_clientes'] > 0]
                 
-                fig_summary = go.Figure()
+                if not customers_data.empty:
+                    fig_customers.add_trace(go.Bar(
+                        x=customers_data['mes_ano'],
+                        y=customers_data['novos_clientes'],
+                        marker_color='#3b82f6',
+                        text=customers_data['novos_clientes'],
+                        texttemplate='%{text}',
+                        textposition='outside',
+                        textfont=dict(size=14, color='black'),
+                        width=0.6
+                    ))
                 
-                # MRR como linha principal
-                fig_summary.add_trace(go.Scatter(
-                    x=data_with_values['mes_ano'],
-                    y=data_with_values['mrr'],
-                    mode='lines+markers',
-                    name='MRR (USD)',
-                    line=dict(color='#10b981', width=5),
-                    marker=dict(size=12, color='#10b981'),
-                    yaxis='y1'
-                ))
-                
-                # Novos clientes como barras
-                fig_summary.add_trace(go.Bar(
-                    x=data_with_values['mes_ano'],
-                    y=data_with_values['novos_clientes'],
-                    name='Novos Clientes',
-                    marker_color='#3b82f6',
-                    opacity=0.8,
-                    yaxis='y2'
-                ))
-                
-                fig_summary.update_layout(
-                    title=dict(
-                        text='💰 MRR e 👥 Novos Clientes por Mês',
-                        font=dict(size=22, family='Arial Black'),
-                        x=0.5
-                    ),
-                    xaxis=dict(
-                        title='Mês',
-                        tickfont=dict(size=12)
-                    ),
-                    yaxis=dict(
-                        title='MRR (USD)', 
-                        side='left',
-                        tickformat='$,.0f',
-                        titlefont=dict(color='#10b981')
-                    ),
-                    yaxis2=dict(
-                        title='Novos Clientes', 
-                        side='right',
-                        overlaying='y',
-                        titlefont=dict(color='#3b82f6')
-                    ),
-                    height=450,
+                fig_customers.update_layout(
+                    title='👥 Novos Clientes',
+                    xaxis_title='Mês',
+                    yaxis_title='Quantidade',
+                    height=350,
+                    showlegend=False,
                     plot_bgcolor='white',
                     paper_bgcolor='white',
-                    legend=dict(x=0.02, y=0.98),
-                    margin=dict(t=80, b=60, l=80, r=80)
+                    margin=dict(t=50, b=40, l=40, r=40),
+                    font=dict(size=12)
                 )
                 
-                st.plotly_chart(fig_summary, use_container_width=True)
-            else:
-                st.info("📊 Adicione dados de clientes para visualizar a evolução mensal")
+                st.plotly_chart(fig_customers, use_container_width=True)
+                
+                # Gráfico 3: Ticket Médio (mais limpo)
+                fig_ticket = go.Figure()
+                
+                ticket_data = monthly_metrics[monthly_metrics['ticket_medio'] > 0]
+                
+                if not ticket_data.empty:
+                    fig_ticket.add_trace(go.Bar(
+                        x=ticket_data['mes_ano'],
+                        y=ticket_data['ticket_medio'],
+                        marker_color='#f59e0b',
+                        text=ticket_data['ticket_medio'],
+                        texttemplate='$%{text:,.0f}',
+                        textposition='outside',
+                        textfont=dict(size=14, color='black'),
+                        width=0.6
+                    ))
+                
+                fig_ticket.update_layout(
+                    title='🎯 Ticket Médio',
+                    xaxis_title='Mês',
+                    yaxis_title='Valor (USD)',
+                    height=350,
+                    showlegend=False,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    margin=dict(t=50, b=40, l=60, r=40),
+                    font=dict(size=12),
+                    yaxis=dict(tickformat='$,.0f')
+                )
+                
+                st.plotly_chart(fig_ticket, use_container_width=True)
+            
+            with col2:
+                # Gráfico 2: MRR (mais limpo)
+                fig_mrr = go.Figure()
+                
+                mrr_data = monthly_metrics[monthly_metrics['mrr'] > 0]
+                
+                if not mrr_data.empty:
+                    fig_mrr.add_trace(go.Scatter(
+                        x=mrr_data['mes_ano'],
+                        y=mrr_data['mrr'],
+                        mode='lines+markers',
+                        line=dict(color='#10b981', width=4),
+                        marker=dict(size=10, color='#10b981'),
+                        text=mrr_data['mrr'],
+                        texttemplate='$%{text:,.0f}',
+                        textposition='top center',
+                        textfont=dict(size=14, color='black')
+                    ))
+                
+                fig_mrr.update_layout(
+                    title='💰 MRR Mensal',
+                    xaxis_title='Mês',
+                    yaxis_title='Receita (USD)',
+                    height=350,
+                    showlegend=False,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    margin=dict(t=50, b=40, l=60, r=40),
+                    font=dict(size=12),
+                    yaxis=dict(tickformat='$,.0f')
+                )
+                
+                st.plotly_chart(fig_mrr, use_container_width=True)
+                
+                # Gráfico 4: Churn (mais limpo)
+                fig_churn = go.Figure()
+                
+                churn_data = monthly_metrics[monthly_metrics['churn_clientes'] > 0]
+                
+                if not churn_data.empty:
+                    # Calcular taxa de churn
+                    churn_data = churn_data.copy()
+                    churn_data['churn_rate'] = (churn_data['churn_clientes'] / monthly_metrics['novos_clientes'].cumsum() * 100).fillna(0)
+                    
+                    fig_churn.add_trace(go.Bar(
+                        x=churn_data['mes_ano'],
+                        y=churn_data['churn_clientes'],
+                        marker_color='#ef4444',
+                        text=[f"{int(qty)}<br>({rate:.1f}%)" for qty, rate in zip(churn_data['churn_clientes'], churn_data['churn_rate'])],
+                        textposition='outside',
+                        textfont=dict(size=12, color='black'),
+                        width=0.6
+                    ))
+                
+                fig_churn.update_layout(
+                    title='📉 Churn (Quantidade + %)',
+                    xaxis_title='Mês',
+                    yaxis_title='Clientes Perdidos',
+                    height=350,
+                    showlegend=False,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    margin=dict(t=50, b=40, l=40, r=40),
+                    font=dict(size=12)
+                )
+                
+                st.plotly_chart(fig_churn, use_container_width=True)
             
             # Tabela detalhada com todos os dados solicitados em USD
             st.subheader("📋 Dados Mensais Detalhados")
