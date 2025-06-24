@@ -8,6 +8,7 @@ import os
 import calendar
 import shutil
 from persistent_storage import PersistentStorageManager
+from database_manager import DatabaseManager
 
 # Configuração da página
 st.set_page_config(
@@ -27,6 +28,7 @@ class DataManager:
             "customers_master_backup.csv"
         ]
         self.persistent_storage = PersistentStorageManager()
+        self.database_manager = DatabaseManager()
         self._ensure_permanent_storage()
         self._ensure_file_exists()
     
@@ -90,26 +92,45 @@ class DataManager:
             customers_df.to_csv(self.customers_file, index=False)
     
     def load_customers(self):
-        """Carrega dados de clientes com sistema de persistência externa"""
+        """Carrega dados de clientes com prioridade: Banco → Sistema externo → CSV local"""
         try:
-            # Primeira tentativa: carregar do sistema de persistência externa
+            # 1. Tentar carregar do banco de dados primeiro (mais confiável)
+            if self.database_manager.is_connected():
+                df = self.database_manager.load_customers()
+                if not df.empty:
+                    df = self._process_loaded_data(df)
+                    print("✅ Dados carregados do banco PostgreSQL")
+                    return df
+            
+            # 2. Tentar carregar do sistema de persistência externa
             df = self.persistent_storage.load_data()
-            
             if df is not None and not df.empty:
-                # Dados encontrados no sistema externo
-                # Sincronizar com arquivo local
-                df.to_csv(self.customers_file, index=False)
-                return self._process_loaded_data(df)
+                df = self._process_loaded_data(df)
+                
+                # Sincronizar com banco de dados se disponível
+                if self.database_manager.is_connected():
+                    self.database_manager.save_customers(df)
+                    print("🔄 Dados sincronizados com banco PostgreSQL")
+                
+                print("✅ Dados carregados de: " + self.persistent_storage.last_successful_method)
+                return df
             
-            # Segunda tentativa: arquivo local
+            # 3. Se não conseguir carregar do sistema externo, tentar CSV local
             if os.path.exists(self.customers_file):
                 df = pd.read_csv(self.customers_file)
                 if not df.empty:
-                    # Salvar no sistema externo para próximas sessões
+                    df = self._process_loaded_data(df)
+                    
+                    # Salvar em ambos os sistemas
                     self.persistent_storage.save_data(df)
-                    return self._process_loaded_data(df)
+                    if self.database_manager.is_connected():
+                        self.database_manager.save_customers(df)
+                        print("🔄 Dados migrados para banco PostgreSQL")
+                    
+                    print(f"🔄 Dados atualizados de {self.customers_file}")
+                    return df
             
-            # Terceira tentativa: criar arquivo vazio
+            # Se nenhum dado existir, criar estrutura vazia
             self._ensure_file_exists()
             return pd.DataFrame(columns=['name', 'signup_date', 'plan_value', 'status', 'cancel_date'])
             
@@ -163,7 +184,12 @@ class DataManager:
             # Criar backups permanentes ANTES de salvar
             self._create_permanent_backups(df)
             
-            # Salvar no sistema de persistência externa
+            # Salvar no banco de dados (prioridade)
+            database_save_success = False
+            if self.database_manager.is_connected():
+                database_save_success = self.database_manager.save_customers(df)
+            
+            # Salvar no sistema de persistência externa (backup)
             external_save_success = self.persistent_storage.save_data(df)
             
             # Criar múltiplos backups temporários também
@@ -247,9 +273,11 @@ class DataManager:
                         continue
                 return False
             
+            print(f"✅ Cliente adicionado - Banco: {'OK' if database_save_success else 'N/A'}, Sistema externo: {'OK' if external_save_success else 'FALHOU'}")
             return True
             
         except Exception as e:
+            print(f"Erro ao adicionar cliente: {e}")
             # Última tentativa de restauração
             for backup in [f"{self.customers_file}.backup", 
                           f"{self.customers_file}.backup2", 
@@ -280,16 +308,21 @@ class DataManager:
             # Remover cliente pelo índice
             df_updated = df.drop(df.index[index]).reset_index(drop=True)
             
-            # Salvar no sistema de persistência externa
+            # Salvar no banco de dados (prioridade)
+            database_save_success = False
+            if self.database_manager.is_connected():
+                database_save_success = self.database_manager.save_customers(df_updated)
+            
+            # Salvar no sistema de persistência externa (backup)
             external_save_success = self.persistent_storage.save_data(df_updated)
             
-            # Salvar localmente
+            # Salvar localmente (backup local)
             df_updated.to_csv(self.customers_file, index=False)
             
             # Verificar se a remoção foi bem-sucedida
             df_verify = self.load_customers()
             if len(df_verify) == len(df) - 1:
-                print(f"✅ Cliente removido com sucesso - Sistema externo: {'OK' if external_save_success else 'FALHOU'}")
+                print(f"✅ Cliente removido - Banco: {'OK' if database_save_success else 'N/A'}, Sistema externo: {'OK' if external_save_success else 'FALHOU'}")
                 return True
             else:
                 print(f"❌ Falha na verificação: esperado {len(df) - 1}, obtido {len(df_verify)}")
@@ -1037,34 +1070,39 @@ if page == "Dashboard":
 elif page == "Inserir Dados":
     st.header("📝 Adicionar Novo Cliente")
     
-    # Sistema de monitoramento de persistência permanente
-    backup_status = []
-    for backup_file in data_manager.backup_files:
-        if os.path.exists(backup_file):
-            backup_df = pd.read_csv(backup_file)
-            backup_status.append(f"✅ {backup_file}: {len(backup_df)} registros")
-        else:
-            backup_status.append(f"⚠️ {backup_file}: Não encontrado")
-    
-    # Verificar status do sistema de persistência externa
-    storage_status = data_manager.persistent_storage.get_storage_status()
-    external_storage_info = []
-    for status in storage_status:
-        if status['available']:
-            external_storage_info.append(f"✅ {status['method']}: {status['records']} registros {'(PERMANENTE)' if status['permanent'] else '(temporário)'}")
-        else:
-            external_storage_info.append(f"⚠️ {status['method']}: não disponível")
-    
-    # Verificar integridade dos dados atuais
+    # Status do sistema integrado (Banco + Persistência Externa)
     current_customers = data_manager.load_customers()
     total_records = len(current_customers)
+    db_connected = data_manager.database_manager.is_connected()
+    
+    # Verificar backups locais
+    backup_count = sum(1 for backup_file in data_manager.backup_files if os.path.exists(backup_file))
+    
+    # Verificar sistemas externos
+    storage_status = data_manager.persistent_storage.get_storage_status()
+    external_methods = sum(1 for status in storage_status if status['available'])
+    
+    # Exibir status unificado
+    if db_connected:
+        status_color = "#d4edda"
+        border_color = "#c3e6cb" 
+        text_color = "#155724"
+        icon = "🔒"
+        title = "Sistema de Persistência Permanente Ativo"
+        subtitle = f"Banco PostgreSQL conectado + {external_methods} sistemas de backup"
+    else:
+        status_color = "#fff3cd"
+        border_color = "#ffeaa7"
+        text_color = "#856404"
+        icon = "⚠️"
+        title = "Sistema de Backup Ativo (Configurar Banco)"
+        subtitle = f"{external_methods} sistemas de persistência + {backup_count} backups locais"
     
     st.markdown(f"""
-    <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
-        <h5 style="margin-top: 0; color: #155724;">Sistema de Persistência Multi-Camada Ativo</h5>
-        <p style="margin-bottom: 5px; color: #155724;">📊 <strong>{total_records} clientes</strong> protegidos permanentemente</p>
-        <p style="margin-bottom: 5px; color: #155724; font-size: 12px;"><strong>Backups Locais:</strong> {' | '.join(backup_status[:2])}</p>
-        <p style="margin-bottom: 0; color: #155724; font-size: 12px;"><strong>Armazenamento Externo:</strong> {' | '.join(external_storage_info)}</p>
+    <div style="background: {status_color}; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid {border_color};">
+        <h5 style="margin-top: 0; color: {text_color};">{icon} {title}</h5>
+        <p style="margin-bottom: 5px; color: {text_color};">📊 <strong>{total_records} clientes</strong> protegidos</p>
+        <p style="margin-bottom: 0; color: {text_color}; font-size: 12px;">{subtitle}</p>
     </div>
     """, unsafe_allow_html=True)
     

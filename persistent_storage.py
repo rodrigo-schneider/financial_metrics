@@ -14,6 +14,7 @@ import streamlit as st
 class PersistentStorageManager:
     def __init__(self):
         self.storage_methods = []
+        self.last_successful_method = "Nenhum método disponível"
         self._setup_storage_methods()
     
     def _setup_storage_methods(self):

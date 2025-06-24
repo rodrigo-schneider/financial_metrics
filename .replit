@@ -26,7 +26,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "streamlit run app.py --server.port 5000"
+args = "export DATABASE_URL='postgresql://postgres.snqpmkaydokjvzbwlfgh:!Moic2025@aws-0-sa-east-1.pooler.supabase.com:6543/postgres' && streamlit run app.py --server.port 5000"
 waitForPort = 5000
 
 [[ports]]
