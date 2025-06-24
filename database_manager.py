@@ -11,6 +11,10 @@ from sqlalchemy.exc import SQLAlchemyError
 import streamlit as st
 from datetime import datetime
 import traceback
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente
+load_dotenv()
 
 class DatabaseManager:
     def __init__(self):
