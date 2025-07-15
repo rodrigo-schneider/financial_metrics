@@ -503,6 +503,62 @@ class MetricsCalculator:
         
         return churn_count, churn_value
     
+    def calculate_ltv_metrics(self):
+        """Calcula métricas de LTV (Lifetime Value) dos clientes"""
+        if self.customers_df.empty:
+            return {
+                'ltv_medio': 0.0,
+                'ltv_clientes_ativos': 0.0,
+                'ltv_clientes_cancelados': 0.0,
+                'tempo_vida_medio_meses': 0.0,
+                'total_clientes_analisados': 0
+            }
+        
+        # Calcular LTV para cada cliente
+        ltv_data = []
+        current_date = pd.Timestamp.now()
+        
+        for _, cliente in self.customers_df.iterrows():
+            signup_date = cliente['signup_date']
+            cancel_date = cliente['cancel_date']
+            plan_value = cliente['plan_value']
+            
+            # Determinar data final (cancelamento ou data atual)
+            end_date = cancel_date if pd.notna(cancel_date) else current_date
+            
+            # Calcular meses de vida do cliente
+            months_active = max(1, (end_date.year - signup_date.year) * 12 + (end_date.month - signup_date.month))
+            
+            # LTV = valor mensal × meses ativos
+            ltv = plan_value * months_active
+            
+            ltv_data.append({
+                'cliente': cliente['name'],
+                'ltv': ltv,
+                'months_active': months_active,
+                'plan_value': plan_value,
+                'is_active': pd.isna(cancel_date),
+                'signup_date': signup_date,
+                'cancel_date': cancel_date
+            })
+        
+        ltv_df = pd.DataFrame(ltv_data)
+        
+        # Calcular métricas agregadas
+        ltv_medio = ltv_df['ltv'].mean()
+        ltv_clientes_ativos = ltv_df[ltv_df['is_active']]['ltv'].mean() if ltv_df['is_active'].any() else 0
+        ltv_clientes_cancelados = ltv_df[~ltv_df['is_active']]['ltv'].mean() if (~ltv_df['is_active']).any() else 0
+        tempo_vida_medio = ltv_df['months_active'].mean()
+        
+        return {
+            'ltv_medio': ltv_medio,
+            'ltv_clientes_ativos': ltv_clientes_ativos,
+            'ltv_clientes_cancelados': ltv_clientes_cancelados,
+            'tempo_vida_medio_meses': tempo_vida_medio,
+            'total_clientes_analisados': len(ltv_df),
+            'ltv_detalhado': ltv_df
+        }
+    
     def _get_month_end(self, month_date):
         """Retorna o último momento do mês"""
         last_day = calendar.monthrange(month_date.year, month_date.month)[1]
@@ -1051,6 +1107,116 @@ if page == "Dashboard":
                 )
                 
                 st.plotly_chart(fig_churn, use_container_width=True)
+            
+            # Seção de LTV (Lifetime Value)
+            st.subheader("💎 Análise de LTV (Lifetime Value)")
+            
+            # Calcular métricas de LTV
+            ltv_metrics = calculator.calculate_ltv_metrics()
+            
+            # Exibir KPIs de LTV em colunas
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric(
+                    label="💰 LTV Médio Geral",
+                    value=f"${ltv_metrics['ltv_medio']:,.0f}",
+                    help="Valor médio que cada cliente gera durante sua vida útil"
+                )
+            
+            with col2:
+                st.metric(
+                    label="🟢 LTV Clientes Ativos",
+                    value=f"${ltv_metrics['ltv_clientes_ativos']:,.0f}",
+                    help="LTV médio dos clientes que ainda estão ativos"
+                )
+            
+            with col3:
+                st.metric(
+                    label="🔴 LTV Clientes Cancelados",
+                    value=f"${ltv_metrics['ltv_clientes_cancelados']:,.0f}",
+                    help="LTV médio dos clientes que cancelaram"
+                )
+            
+            with col4:
+                st.metric(
+                    label="⏱️ Tempo Médio de Vida",
+                    value=f"{ltv_metrics['tempo_vida_medio_meses']:.1f} meses",
+                    help="Tempo médio que um cliente permanece ativo"
+                )
+            
+            # Gráfico de distribuição de LTV
+            if ltv_metrics['total_clientes_analisados'] > 0:
+                ltv_df = ltv_metrics['ltv_detalhado']
+                
+                # Criar gráfico de histograma de LTV
+                fig_ltv_hist = go.Figure()
+                
+                fig_ltv_hist.add_trace(go.Histogram(
+                    x=ltv_df['ltv'],
+                    nbinsx=20,
+                    marker_color='#8b5cf6',
+                    opacity=0.7,
+                    name='Distribuição de LTV'
+                ))
+                
+                fig_ltv_hist.update_layout(
+                    title='📊 Distribuição de LTV dos Clientes',
+                    xaxis_title='LTV (USD)',
+                    yaxis_title='Quantidade de Clientes',
+                    height=400,
+                    showlegend=False,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    margin=dict(t=50, b=40, l=40, r=40),
+                    font=dict(size=12),
+                    xaxis=dict(tickformat='$,.0f')
+                )
+                
+                st.plotly_chart(fig_ltv_hist, use_container_width=True)
+                
+                # Gráfico de comparação LTV vs Tempo de Vida
+                fig_ltv_scatter = go.Figure()
+                
+                # Separar clientes ativos e cancelados
+                active_customers = ltv_df[ltv_df['is_active']]
+                churned_customers = ltv_df[~ltv_df['is_active']]
+                
+                if not active_customers.empty:
+                    fig_ltv_scatter.add_trace(go.Scatter(
+                        x=active_customers['months_active'],
+                        y=active_customers['ltv'],
+                        mode='markers',
+                        marker=dict(size=10, color='#10b981'),
+                        name='Clientes Ativos',
+                        text=active_customers['cliente'],
+                        hovertemplate='<b>%{text}</b><br>Tempo: %{x} meses<br>LTV: $%{y:,.0f}<extra></extra>'
+                    ))
+                
+                if not churned_customers.empty:
+                    fig_ltv_scatter.add_trace(go.Scatter(
+                        x=churned_customers['months_active'],
+                        y=churned_customers['ltv'],
+                        mode='markers',
+                        marker=dict(size=10, color='#ef4444'),
+                        name='Clientes Cancelados',
+                        text=churned_customers['cliente'],
+                        hovertemplate='<b>%{text}</b><br>Tempo: %{x} meses<br>LTV: $%{y:,.0f}<extra></extra>'
+                    ))
+                
+                fig_ltv_scatter.update_layout(
+                    title='💹 LTV vs Tempo de Vida (Clientes)',
+                    xaxis_title='Tempo de Vida (meses)',
+                    yaxis_title='LTV (USD)',
+                    height=400,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    margin=dict(t=50, b=40, l=60, r=40),
+                    font=dict(size=12),
+                    yaxis=dict(tickformat='$,.0f')
+                )
+                
+                st.plotly_chart(fig_ltv_scatter, use_container_width=True)
             
             # Tabela detalhada com todos os dados solicitados em USD
             st.subheader("📋 Dados Mensais Detalhados")

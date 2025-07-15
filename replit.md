@@ -187,6 +187,19 @@ Preferred communication style: Simple, everyday language.
   - Backup triplo garante zero perda de dados
   - Interface unificada para monitoramento de status
 
+### July 15, 2025 - Implementação de LTV (Lifetime Value)
+- **Nova Métrica Adicionada**: Cálculo completo de LTV (Lifetime Value) para análise de rentabilidade
+- **Funcionalidades Implementadas**:
+  - **LTV Médio Geral**: Valor médio que cada cliente gera durante sua vida útil
+  - **LTV Clientes Ativos**: LTV médio dos clientes que ainda estão ativos
+  - **LTV Clientes Cancelados**: LTV médio dos clientes que cancelaram
+  - **Tempo Médio de Vida**: Tempo médio que um cliente permanece ativo
+- **Visualizações Criadas**:
+  - Histograma de distribuição de LTV dos clientes
+  - Gráfico scatter LTV vs Tempo de Vida (diferenciando ativos e cancelados)
+- **Cálculo**: LTV = valor mensal do plano × meses de vida do cliente
+- **Interface**: Seção dedicada no dashboard com 4 KPIs principais e 2 gráficos interativos
+
 ### July 15, 2025 - Modificação no Cálculo de Churn
 - **Regra de Negócio Alterada**: Churn agora considera apenas clientes que permaneceram pelo menos 2 meses
 - **Critério Implementado**: Clientes que cancelam no primeiro mês não são mais contabilizados como churn
