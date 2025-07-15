@@ -335,6 +335,56 @@ class DataManager:
             if os.path.exists(backup_file):
                 shutil.copy2(backup_file, self.customers_file)
             return False
+    
+    def update_customer(self, index, name, signup_date, plan_value, status, cancel_date=None):
+        """Atualiza dados completos do cliente com validações e salvamento ultra-robusto"""
+        try:
+            df = self.load_customers()
+            
+            if df.empty or index < 0 or index >= len(df):
+                print(f"Erro: Índice inválido {index} para DataFrame com {len(df)} registros")
+                return False
+            
+            # Backup antes de atualizar
+            self._create_permanent_backups(df)
+            backup_file = f"{self.customers_file}.backup"
+            if os.path.exists(self.customers_file):
+                shutil.copy2(self.customers_file, backup_file)
+            
+            # Atualizar dados do cliente
+            df.loc[index, 'name'] = name
+            df.loc[index, 'signup_date'] = signup_date
+            df.loc[index, 'plan_value'] = plan_value
+            df.loc[index, 'status'] = status
+            df.loc[index, 'cancel_date'] = cancel_date if cancel_date else None
+            
+            # Salvar no banco de dados (prioridade)
+            database_save_success = False
+            if self.database_manager.is_connected():
+                database_save_success = self.database_manager.save_customers(df)
+            
+            # Salvar no sistema de persistência externa (backup)
+            external_save_success = self.persistent_storage.save_data(df)
+            
+            # Salvar localmente (backup local)
+            df.to_csv(self.customers_file, index=False)
+            
+            # Verificar se a atualização foi bem-sucedida
+            df_verify = self.load_customers()
+            if len(df_verify) == len(df) and df_verify.loc[index, 'name'] == name:
+                print(f"✅ Cliente atualizado - Banco: {'OK' if database_save_success else 'N/A'}, Sistema externo: {'OK' if external_save_success else 'FALHOU'}")
+                return True
+            else:
+                print(f"❌ Falha na verificação da atualização")
+                return False
+            
+        except Exception as e:
+            print(f"Erro ao atualizar cliente: {e}")
+            # Restaurar backup em caso de erro
+            backup_file = f"{self.customers_file}.backup"
+            if os.path.exists(backup_file):
+                shutil.copy2(backup_file, self.customers_file)
+            return False
 
 # Calculadora de métricas corrigida e robusta
 class MetricsCalculator:
@@ -848,7 +898,7 @@ st.markdown("---")
 st.sidebar.title("Navegação")
 page = st.sidebar.selectbox(
     "Selecione uma página:",
-    ["Dashboard", "Inserir Dados", "Gerenciar Dados", "Exportar Relatórios"]
+    ["Dashboard", "Inserir Dados", "Editar Cliente", "Gerenciar Dados", "Exportar Relatórios"]
 )
 
 if page == "Dashboard":
@@ -1540,6 +1590,236 @@ elif page == "Inserir Dados":
                 time.sleep(1)
                 progress_bar.empty()
                 status_text.empty()
+
+elif page == "Editar Cliente":
+    st.header("✏️ Editar Cliente Existente")
+    
+    # Carregar dados atuais
+    customers_df = data_manager.load_customers()
+    
+    if customers_df.empty:
+        st.warning("⚠️ Nenhum cliente encontrado. Adicione clientes primeiro na seção 'Inserir Dados'.")
+    else:
+        # Seleção do cliente para editar
+        st.subheader("📋 Selecione o cliente para editar")
+        
+        # Mostrar tabela de clientes para seleção
+        display_df = customers_df.copy()
+        display_df['plan_value'] = display_df['plan_value'].apply(lambda x: f"${x:,.2f}")
+        display_df['signup_date'] = pd.to_datetime(display_df['signup_date']).dt.strftime('%d/%m/%Y')
+        display_df['cancel_date'] = pd.to_datetime(display_df['cancel_date'], errors='coerce').dt.strftime('%d/%m/%Y')
+        display_df['cancel_date'] = display_df['cancel_date'].fillna('--')
+        
+        # Renomear colunas para exibição
+        display_df = display_df.rename(columns={
+            'name': 'Nome',
+            'signup_date': 'Data Cadastro',
+            'plan_value': 'Valor Mensal',
+            'status': 'Status',
+            'cancel_date': 'Data Cancelamento'
+        })
+        
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+        # Seleção por índice
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            selected_index = st.selectbox(
+                "Selecione o cliente pelo índice (número da linha)",
+                options=list(range(len(customers_df))),
+                format_func=lambda x: f"{x} - {customers_df.iloc[x]['name']} (${customers_df.iloc[x]['plan_value']:,.2f})"
+            )
+        
+        with col2:
+            if st.button("🔄 Atualizar Lista", use_container_width=True):
+                st.rerun()
+        
+        # Formulário de edição
+        if selected_index is not None:
+            st.subheader("✏️ Editar dados do cliente")
+            
+            # Carregar dados do cliente selecionado
+            selected_customer = customers_df.iloc[selected_index]
+            
+            # Mostrar dados atuais
+            st.info(f"**Cliente selecionado:** {selected_customer['name']} - Índice {selected_index}")
+            
+            # Formulário de edição
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                edit_name = st.text_input(
+                    "Nome Completo",
+                    value=selected_customer['name'],
+                    placeholder="Ex: João Silva",
+                    help="Digite o nome completo do cliente",
+                    key="edit_name"
+                )
+                
+                # Converter data para string no formato brasileiro
+                current_signup = pd.to_datetime(selected_customer['signup_date']).strftime('%d/%m/%Y')
+                edit_signup_date_str = st.text_input(
+                    "Data de Cadastro (DD/MM/AAAA)",
+                    value=current_signup,
+                    placeholder="Ex: 15/01/2024",
+                    help="Data quando o cliente se cadastrou",
+                    key="edit_signup_date"
+                )
+            
+            with col2:
+                edit_plan_value_str = st.text_input(
+                    "Valor do Plano Mensal (USD)",
+                    value=f"{selected_customer['plan_value']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+                    placeholder="Ex: 4.000,00 ou 4000.00",
+                    help="Valor que o cliente paga por mês",
+                    key="edit_plan_value"
+                )
+                
+                edit_status = st.selectbox(
+                    "Status do Cliente",
+                    ["Ativo", "Cancelado"],
+                    index=0 if selected_customer['status'].lower() == 'ativo' else 1,
+                    help="Situação atual do cliente",
+                    key="edit_status"
+                )
+            
+            # Data de cancelamento (se necessário)
+            edit_cancel_date_str = None
+            if edit_status == "Cancelado":
+                current_cancel = ""
+                if pd.notna(selected_customer['cancel_date']):
+                    current_cancel = pd.to_datetime(selected_customer['cancel_date']).strftime('%d/%m/%Y')
+                
+                edit_cancel_date_str = st.text_input(
+                    "Data de Cancelamento (DD/MM/AAAA)",
+                    value=current_cancel,
+                    placeholder="Ex: 23/06/2025",
+                    help="Data quando o cliente cancelou",
+                    key="edit_cancel_date"
+                )
+            
+            # Comparação de dados
+            st.subheader("🔄 Comparação de Alterações")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Dados Atuais:**")
+                st.write(f"- Nome: {selected_customer['name']}")
+                st.write(f"- Data Cadastro: {current_signup}")
+                st.write(f"- Valor: ${selected_customer['plan_value']:,.2f}")
+                st.write(f"- Status: {selected_customer['status']}")
+                if pd.notna(selected_customer['cancel_date']):
+                    cancel_display = pd.to_datetime(selected_customer['cancel_date']).strftime('%d/%m/%Y')
+                    st.write(f"- Data Cancelamento: {cancel_display}")
+            
+            with col2:
+                st.write("**Novos Dados:**")
+                st.write(f"- Nome: {edit_name}")
+                st.write(f"- Data Cadastro: {edit_signup_date_str}")
+                st.write(f"- Valor: {edit_plan_value_str}")
+                st.write(f"- Status: {edit_status}")
+                if edit_cancel_date_str:
+                    st.write(f"- Data Cancelamento: {edit_cancel_date_str}")
+            
+            # Botão de atualização
+            if st.button("💾 Salvar Alterações", use_container_width=True, type="primary"):
+                # Validações
+                errors = []
+                parsed_signup_date = None
+                parsed_cancel_date = None
+                parsed_plan_value = None
+                
+                # Validar nome
+                if not edit_name or not edit_name.strip():
+                    errors.append("❌ Nome do cliente é obrigatório")
+                
+                # Validar valor
+                if not edit_plan_value_str or not edit_plan_value_str.strip():
+                    errors.append("❌ Valor do plano é obrigatório")
+                else:
+                    try:
+                        value_str = edit_plan_value_str.strip()
+                        if "," in value_str:
+                            value_clean = value_str.replace(".", "").replace(",", ".")
+                        else:
+                            value_clean = value_str
+                        parsed_plan_value = float(value_clean)
+                        if parsed_plan_value <= 0:
+                            errors.append("❌ Valor do plano deve ser maior que zero")
+                    except ValueError:
+                        errors.append("❌ Valor do plano inválido")
+                
+                # Validar data de cadastro
+                if not edit_signup_date_str or not edit_signup_date_str.strip():
+                    errors.append("❌ Data de cadastro é obrigatória")
+                else:
+                    try:
+                        day, month, year = edit_signup_date_str.split("/")
+                        parsed_signup_date = date(int(year), int(month), int(day))
+                    except ValueError:
+                        errors.append("❌ Data de cadastro inválida (use formato: DD/MM/AAAA)")
+                
+                # Validar data de cancelamento
+                if edit_status == "Cancelado":
+                    if not edit_cancel_date_str or not edit_cancel_date_str.strip():
+                        errors.append("❌ Data de cancelamento é obrigatória para clientes cancelados")
+                    else:
+                        try:
+                            day, month, year = edit_cancel_date_str.split("/")
+                            parsed_cancel_date = date(int(year), int(month), int(day))
+                            if parsed_signup_date and parsed_cancel_date < parsed_signup_date:
+                                errors.append("❌ Data de cancelamento não pode ser anterior à data de cadastro")
+                        except ValueError:
+                            errors.append("❌ Data de cancelamento inválida")
+                
+                # Mostrar erros ou processar atualização
+                if errors:
+                    for error in errors:
+                        st.error(error)
+                else:
+                    # Processar atualização
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    status_text.text("🔄 Atualizando cliente...")
+                    progress_bar.progress(30)
+                    
+                    success = data_manager.update_customer(
+                        selected_index,
+                        edit_name,
+                        parsed_signup_date,
+                        parsed_plan_value,
+                        edit_status,
+                        parsed_cancel_date
+                    )
+                    
+                    progress_bar.progress(80)
+                    
+                    if success:
+                        progress_bar.progress(100)
+                        status_text.text("✅ Cliente atualizado com sucesso!")
+                        
+                        st.success("🎉 Cliente atualizado com sucesso!")
+                        st.balloons()
+                        
+                        # Limpar e recarregar
+                        import time
+                        time.sleep(1)
+                        progress_bar.empty()
+                        status_text.empty()
+                        st.rerun()
+                    else:
+                        progress_bar.progress(100)
+                        status_text.text("❌ Falha na atualização")
+                        st.error("❌ Erro ao atualizar cliente. Tente novamente.")
+                        
+                        # Limpar progress bar
+                        import time
+                        time.sleep(2)
+                        progress_bar.empty()
+                        status_text.empty()
 
 elif page == "Gerenciar Dados":
     st.header("🗂️ Gerenciar Dados Existentes")

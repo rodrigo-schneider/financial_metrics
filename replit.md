@@ -187,6 +187,18 @@ Preferred communication style: Simple, everyday language.
   - Backup triplo garante zero perda de dados
   - Interface unificada para monitoramento de status
 
+### July 15, 2025 - Funcionalidade de Edição de Clientes
+- **Nova Página Implementada**: "Editar Cliente" no menu de navegação
+- **Funcionalidades de Edição**:
+  - **Seleção Visual**: Tabela com todos os clientes e seleção por índice
+  - **Formulário Completo**: Edição de nome, data de cadastro, valor do plano, status e data de cancelamento
+  - **Validações**: Mesmas validações da inserção (formatos brasileiros, datas, valores)
+  - **Comparação Visual**: Lado a lado dos dados atuais vs novos dados
+  - **Feedback em Tempo Real**: Barra de progresso e mensagens durante o salvamento
+- **Persistência**: Integrada com sistema de backup triplo (PostgreSQL + Sistema externo + CSV)
+- **Recálculo Automático**: Métricas são recalculadas automaticamente após edição
+- **Interface**: Formulário intuitivo com validações e confirmação visual
+
 ### July 15, 2025 - Implementação de LTV (Lifetime Value)
 - **Nova Métrica Adicionada**: Cálculo completo de LTV (Lifetime Value) para análise de rentabilidade
 - **Funcionalidades Implementadas**:
