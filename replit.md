@@ -187,7 +187,15 @@ Preferred communication style: Simple, everyday language.
   - Backup triplo garante zero perda de dados
   - Interface unificada para monitoramento de status
 
+### July 15, 2025 - Modificação no Cálculo de Churn
+- **Regra de Negócio Alterada**: Churn agora considera apenas clientes que permaneceram pelo menos 2 meses
+- **Critério Implementado**: Clientes que cancelam no primeiro mês não são mais contabilizados como churn
+- **Cálculo**: Diferença em meses entre `signup_date` e `cancel_date` deve ser >= 2 meses
+- **Impacto**: Métricas de churn mais precisas, excluindo cancelamentos de teste ou desistências imediatas
+- **Funcionalidade**: Sistema diferencia entre cancelamentos precoces e churn real
+
 ## Changelog
 
 Changelog:
+- July 15, 2025. Modified churn calculation to exclude first-month cancellations
 - June 23, 2025. Initial setup with ultra-robust data persistence system

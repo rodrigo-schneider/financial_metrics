@@ -471,15 +471,31 @@ class MetricsCalculator:
         return active_customers['plan_value'].mean()
     
     def _calculate_churn(self, month_date):
-        """Calcula churn de clientes e MRR no mês"""
+        """Calcula churn de clientes e MRR no mês - apenas clientes com 2+ meses"""
         month_start = month_date.replace(day=1)
         month_end = self._get_month_end(month_date)
         
         # Clientes que cancelaram durante o mês
-        churned_customers = self.customers_df[
+        canceled_this_month = self.customers_df[
             (self.customers_df['cancel_date'] >= month_start) &
             (self.customers_df['cancel_date'] <= month_end) &
             (self.customers_df['cancel_date'].notna())
+        ].copy()
+        
+        if canceled_this_month.empty:
+            return 0, 0.0
+        
+        # Filtrar apenas clientes que ficaram pelo menos 2 meses
+        # Calcular diferença em meses entre signup_date e cancel_date
+        def months_between(start_date, end_date):
+            return (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+        
+        # Aplicar filtro de 2+ meses
+        churned_customers = canceled_this_month[
+            canceled_this_month.apply(
+                lambda row: months_between(row['signup_date'], row['cancel_date']) >= 2, 
+                axis=1
+            )
         ]
         
         churn_count = len(churned_customers)
