@@ -212,6 +212,17 @@ Preferred communication style: Simple, everyday language.
 - **Cálculo**: LTV = valor mensal do plano × meses de vida do cliente
 - **Interface**: Seção dedicada no dashboard com 4 KPIs principais e 2 gráficos interativos
 
+### July 15, 2025 - Sistema de Administração de Banco de Dados
+- **Problema Resolvido**: Duplicação excessiva de dados no banco (560 registros duplicados)
+- **Nova Página**: "Admin Database" para gerenciar dados do banco
+- **Funcionalidades Implementadas**:
+  - **Estatísticas em Tempo Real**: Total de registros, clientes ativos, duplicatas detectadas
+  - **Limpeza de Duplicatas**: Remove registros duplicados mantendo apenas o primeiro
+  - **Reset Completo**: Limpa todos os dados do banco e sistemas de backup
+  - **Sincronização**: Dados locais ↔ banco de dados
+  - **Proteção**: Transações atômicas para prevenir futuras duplicações
+- **Reset Executado**: Todos os dados de simulação removidos, sistema vazio para dados reais
+
 ### July 15, 2025 - Modificação no Cálculo de Churn
 - **Regra de Negócio Alterada**: Churn agora considera apenas clientes que permaneceram pelo menos 2 meses
 - **Critério Implementado**: Clientes que cancelam no primeiro mês não são mais contabilizados como churn

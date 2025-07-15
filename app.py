@@ -1957,27 +1957,26 @@ elif page == "Admin Database":
                         st.error("❌ Erro na sincronização")
         
         with col2:
-            st.write("**Restaurar Dados Limpos**")
-            st.write("Carrega dados básicos (30 clientes) para teste")
+            st.write("**Limpar Todos os Dados**")
+            st.write("Remove TODOS os clientes deixando o sistema vazio")
             
-            if st.button("🔄 Restaurar Dados Limpos"):
-                with st.spinner("Restaurando dados limpos..."):
-                    # Carregar dados limpos
-                    try:
-                        clean_df = pd.read_csv('clean_customers.csv')
-                        
-                        # Salvar no banco
-                        success = data_manager.database_manager.save_customers(clean_df)
-                        
-                        if success:
-                            # Também salvar localmente
-                            clean_df.to_csv(data_manager.customers_file, index=False)
-                            st.success("✅ Dados limpos restaurados com sucesso!")
-                            st.rerun()
-                        else:
-                            st.error("❌ Erro ao restaurar dados limpos")
-                    except Exception as e:
-                        st.error(f"❌ Erro ao restaurar: {str(e)}")
+            if st.button("🗑️ Limpar Tudo", type="secondary"):
+                with st.spinner("Removendo todos os dados..."):
+                    # Criar DataFrame vazio
+                    empty_df = pd.DataFrame(columns=['name', 'signup_date', 'plan_value', 'status', 'cancel_date'])
+                    
+                    # Limpar banco
+                    success = data_manager.database_manager.reset_database()
+                    
+                    if success:
+                        # Limpar CSV local
+                        empty_df.to_csv(data_manager.customers_file, index=False)
+                        # Limpar sistema de persistência externa
+                        data_manager.persistent_storage.save_data(empty_df)
+                        st.success("✅ Todos os dados removidos com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao limpar dados")
         
         st.markdown("---")
         

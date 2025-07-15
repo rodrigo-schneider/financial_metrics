@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 Dados persistentes do dashboard - Gerado automaticamente
-Timestamp: 2025-06-24T11:21:30.307762
+Timestamp: 2025-07-15T18:30:06.955311
 """
 
-CUSTOMER_DATA = [{'name': 'Aarna AI', 'signup_date': '2025-03-29', 'plan_value': 4000.0, 'status': 'Ativo', 'cancel_date': nan}]
+CUSTOMER_DATA = []
 
 def get_embedded_data():
     """Retorna dados embeddidos"""
