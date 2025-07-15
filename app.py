@@ -898,7 +898,7 @@ st.markdown("---")
 st.sidebar.title("Navegação")
 page = st.sidebar.selectbox(
     "Selecione uma página:",
-    ["Dashboard", "Inserir Dados", "Editar Cliente", "Gerenciar Dados", "Exportar Relatórios"]
+    ["Dashboard", "Inserir Dados", "Editar Cliente", "Gerenciar Dados", "Admin Database", "Exportar Relatórios"]
 )
 
 if page == "Dashboard":
@@ -1863,6 +1863,138 @@ elif page == "Gerenciar Dados":
                         st.error("❌ Erro ao remover cliente.")
     else:
         st.info("📊 Nenhum cliente cadastrado.")
+
+elif page == "Admin Database":
+    st.header("🔧 Administração do Banco de Dados")
+    
+    # Verificar conexão do banco
+    if not data_manager.database_manager.is_connected():
+        st.error("❌ Banco de dados não conectado. Configurar DATABASE_URL primeiro.")
+        st.stop()
+    
+    # Obter estatísticas do banco
+    stats = data_manager.database_manager.get_database_stats()
+    
+    if stats:
+        st.subheader("📊 Estatísticas Atuais do Banco")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total de Registros", stats['total'])
+        
+        with col2:
+            st.metric("Clientes Ativos", stats['active'])
+        
+        with col3:
+            if stats['duplicates'] > 0:
+                st.metric("⚠️ Possíveis Duplicatas", stats['duplicates'])
+            else:
+                st.metric("✅ Duplicatas", "0")
+        
+        # Alerta sobre duplicatas
+        if stats['duplicates'] > 0:
+            st.error(f"⚠️ **PROBLEMA DETECTADO**: {stats['duplicates']} grupos de dados duplicados encontrados no banco!")
+        
+        st.markdown("---")
+        
+        # Operações de limpeza
+        st.subheader("🧹 Operações de Limpeza")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Limpar Duplicatas**")
+            st.write("Remove registros duplicados mantendo apenas o primeiro de cada cliente.")
+            
+            if st.button("🗑️ Limpar Duplicatas", type="primary"):
+                with st.spinner("Limpando duplicatas..."):
+                    success = data_manager.database_manager.clean_duplicate_data()
+                    
+                    if success:
+                        st.success("✅ Duplicatas removidas com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao remover duplicatas")
+        
+        with col2:
+            st.write("**Reset Completo**")
+            st.write("⚠️ **CUIDADO**: Remove TODOS os dados do banco!")
+            
+            if st.button("🔥 RESETAR BANCO", type="secondary"):
+                st.warning("⚠️ Esta operação irá apagar TODOS os dados!")
+                
+                if st.button("✅ Confirmar Reset", type="primary"):
+                    with st.spinner("Resetando banco..."):
+                        success = data_manager.database_manager.reset_database()
+                        
+                        if success:
+                            st.success("✅ Banco resetado com sucesso!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Erro ao resetar banco")
+        
+        st.markdown("---")
+        
+        # Sincronização
+        st.subheader("🔄 Sincronização de Dados")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Dados Locais → Banco**")
+            customers_df = data_manager.load_customers()
+            st.write(f"Clientes no CSV local: {len(customers_df)}")
+            
+            if st.button("📤 Sincronizar Local → Banco"):
+                with st.spinner("Sincronizando dados..."):
+                    success = data_manager.database_manager.save_customers(customers_df)
+                    
+                    if success:
+                        st.success("✅ Dados sincronizados com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro na sincronização")
+        
+        with col2:
+            st.write("**Restaurar Dados Limpos**")
+            st.write("Carrega dados básicos (30 clientes) para teste")
+            
+            if st.button("🔄 Restaurar Dados Limpos"):
+                with st.spinner("Restaurando dados limpos..."):
+                    # Carregar dados limpos
+                    try:
+                        clean_df = pd.read_csv('clean_customers.csv')
+                        
+                        # Salvar no banco
+                        success = data_manager.database_manager.save_customers(clean_df)
+                        
+                        if success:
+                            # Também salvar localmente
+                            clean_df.to_csv(data_manager.customers_file, index=False)
+                            st.success("✅ Dados limpos restaurados com sucesso!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Erro ao restaurar dados limpos")
+                    except Exception as e:
+                        st.error(f"❌ Erro ao restaurar: {str(e)}")
+        
+        st.markdown("---")
+        
+        # Logs e informações técnicas
+        st.subheader("🔍 Informações Técnicas")
+        
+        with st.expander("Ver Logs de Conexão"):
+            status = data_manager.database_manager.get_connection_status()
+            st.text(status)
+        
+        with st.expander("Testar Conexão"):
+            if st.button("🔄 Testar Agora"):
+                result = data_manager.database_manager.test_connection()
+                st.json(result)
+    
+    else:
+        st.error("❌ Não foi possível obter estatísticas do banco")
 
 elif page == "Exportar Relatórios":
     st.header("📊 Exportar Relatórios")
