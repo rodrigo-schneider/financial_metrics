@@ -974,7 +974,7 @@ if page == "Dashboard":
                 """, unsafe_allow_html=True)
             
             # Linha adicional com métricas de churn
-            st.markdown("### 📊 Métricas de Churn do Último Mês")
+            st.markdown("### 📊 Métricas de Churn do Mês Atual")
             col5, col6, col7, col8 = st.columns(4)
             
             with col5:
